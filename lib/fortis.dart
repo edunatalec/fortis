@@ -1,5 +1,6 @@
-// Internal import — grants access to phantom type markers for Fortis.rsa()
+// Internal imports — builder return types for Fortis factory methods
 import 'src/algorithms/rsa/rsa_builder.dart';
+import 'src/algorithms/aes/aes_builder.dart';
 
 // Exceptions
 export 'src/exceptions/fortis_exception.dart';
@@ -26,22 +27,47 @@ export 'src/algorithms/rsa/rsa_builder.dart';
 export 'src/algorithms/rsa/rsa_encrypter.dart';
 export 'src/algorithms/rsa/rsa_decrypter.dart';
 
+// AES enums
+export 'src/algorithms/aes/aes_mode.dart';
+export 'src/algorithms/aes/aes_padding.dart';
+
+// AES key
+export 'src/algorithms/aes/aes_key.dart';
+
+// AES builder + operations
+export 'src/algorithms/aes/aes_builder.dart';
+export 'src/algorithms/aes/aes_encrypter.dart';
+export 'src/algorithms/aes/aes_decrypter.dart';
+
 /// Entry point for the Fortis cryptography library.
 ///
 /// ```dart
 /// import 'package:fortis/fortis.dart';
 ///
+/// // AES key generation
+/// final key = await Fortis.aes().keySize(256).generateKey();
+///
+/// // AES encrypt/decrypt
+/// final encrypter = Fortis.aes().mode(AesMode.gcm).key(key).encrypter();
+/// final decrypter = Fortis.aes().mode(AesMode.gcm).key(key).decrypter();
+/// final ciphertext = encrypter.encrypt(plaintext);
+/// final recovered  = decrypter.decrypt(ciphertext);
+///
+/// // RSA
 /// final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
 ///
-/// final encrypter = Fortis.rsa()
+/// final rsaEncrypter = Fortis.rsa()
 ///     .padding(RsaPadding.oaep_v2)
 ///     .hash(RsaHash.sha256)
 ///     .encrypter(pair.publicKey);
 ///
-/// final ciphertext = encrypter.encrypt(plaintext);
+/// final ciphertext = rsaEncrypter.encrypt(plaintext);
 /// ```
 sealed class Fortis {
   /// Creates a new [RsaBuilder] for RSA key generation and encryption.
   static RsaBuilder<RsaBuilderPaddingUnset, RsaBuilderHashUnset> rsa() =>
       RsaBuilder<RsaBuilderPaddingUnset, RsaBuilderHashUnset>();
+
+  /// Creates a new [AesBuilder] for AES key generation and encryption.
+  static AesBuilder aes() => AesBuilder();
 }
