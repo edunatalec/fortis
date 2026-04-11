@@ -57,7 +57,10 @@ final class RsaBuilderHashSet extends RsaBuilderHashState {}
 ///     .hash(RsaHash.sha256)
 ///     .encrypter(pair.publicKey);
 /// ```
-class RsaBuilder<P extends RsaBuilderPaddingState, H extends RsaBuilderHashState> {
+class RsaBuilder<
+  P extends RsaBuilderPaddingState,
+  H extends RsaBuilderHashState
+> {
   final int _keySize;
   final RsaPadding? _padding;
   final RsaHash? _hash;
@@ -69,9 +72,9 @@ class RsaBuilder<P extends RsaBuilderPaddingState, H extends RsaBuilderHashState
     int keySizeParam = 2048,
     RsaPadding? paddingParam,
     RsaHash? hashParam,
-  })  : _keySize = keySizeParam,
-        _padding = paddingParam,
-        _hash = hashParam;
+  }) : _keySize = keySizeParam,
+       _padding = paddingParam,
+       _hash = hashParam;
 
   // ---------------------------------------------------------------------------
   // Configuration methods
@@ -172,9 +175,7 @@ void _validateKeySize(int keySize) {
     );
   }
   if (keySize & (keySize - 1) != 0) {
-    throw FortisConfigException(
-      'keySize must be a power of 2, got $keySize.',
-    );
+    throw FortisConfigException('keySize must be a power of 2, got $keySize.');
   }
 }
 
@@ -203,16 +204,16 @@ Uint8List? _normalizeLabel(Object? label) {
 FortisRsaKeyPair _generateSync(int keySize) {
   final secureRandom = FortunaRandom();
   final rng = Random.secure();
-  final seed = Uint8List.fromList(
-    List.generate(32, (_) => rng.nextInt(256)),
-  );
+  final seed = Uint8List.fromList(List.generate(32, (_) => rng.nextInt(256)));
   secureRandom.seed(KeyParameter(seed));
 
   final keyGen = RSAKeyGenerator()
-    ..init(ParametersWithRandom(
-      RSAKeyGeneratorParameters(BigInt.parse('65537'), keySize, 64),
-      secureRandom,
-    ));
+    ..init(
+      ParametersWithRandom(
+        RSAKeyGeneratorParameters(BigInt.parse('65537'), keySize, 64),
+        secureRandom,
+      ),
+    );
 
   final pair = keyGen.generateKeyPair();
   return FortisRsaKeyPair(

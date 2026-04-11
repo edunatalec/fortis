@@ -17,8 +17,7 @@ void main() {
     RsaEncrypter makeEncrypter({
       RsaPadding padding = RsaPadding.oaep_v2,
       RsaHash hash = RsaHash.sha256,
-    }) =>
-        Fortis.rsa().padding(padding).hash(hash).encrypter(pair.publicKey);
+    }) => Fortis.rsa().padding(padding).hash(hash).encrypter(pair.publicKey);
 
     test('returns non-empty Uint8List', () {
       final encrypter = makeEncrypter();
@@ -32,24 +31,28 @@ void main() {
       expect(result, isNot(equals(plaintext)));
     });
 
-    test('OAEP is probabilistic — same plaintext produces different ciphertexts',
-        () {
-      final encrypter = makeEncrypter();
-      final c1 = encrypter.encrypt(plaintext);
-      final c2 = encrypter.encrypt(plaintext);
-      expect(c1, isNot(equals(c2)));
-    });
+    test(
+      'OAEP is probabilistic — same plaintext produces different ciphertexts',
+      () {
+        final encrypter = makeEncrypter();
+        final c1 = encrypter.encrypt(plaintext);
+        final c2 = encrypter.encrypt(plaintext);
+        expect(c1, isNot(equals(c2)));
+      },
+    );
 
-    test('compile-time safety — encrypter not available without padding/hash',
-        () {
-      // The following line must NOT compile if uncommented:
-      // Fortis.rsa().encrypter(pair.publicKey);
-      //
-      // This test verifies the invariant holds by ensuring the builder
-      // returns the correct type.
-      final builder = Fortis.rsa();
-      expect(builder, isA<RsaBuilder>());
-    });
+    test(
+      'compile-time safety — encrypter not available without padding/hash',
+      () {
+        // The following line must NOT compile if uncommented:
+        // Fortis.rsa().encrypter(pair.publicKey);
+        //
+        // This test verifies the invariant holds by ensuring the builder
+        // returns the correct type.
+        final builder = Fortis.rsa();
+        expect(builder, isA<RsaBuilder>());
+      },
+    );
 
     test('encryptString returns non-empty bytes for a UTF-8 string', () {
       final encrypter = makeEncrypter();

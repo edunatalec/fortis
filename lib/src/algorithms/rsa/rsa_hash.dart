@@ -27,12 +27,12 @@ enum RsaHash {
 
   /// Returns the PointyCastle [Digest] instance corresponding to this hash.
   Digest toDigest() => switch (this) {
-        sha1 => SHA1Digest(),
-        sha224 => SHA224Digest(),
-        sha256 => SHA256Digest(),
-        sha384 => SHA384Digest(),
-        sha512 => SHA512Digest(),
-        sha3_256 => SHA3Digest(256),
-        sha3_512 => SHA3Digest(512),
-      };
+    sha1 => SHA1Digest(),
+    sha224 => SHA224Digest(),
+    sha256 => SHA256Digest(),
+    sha384 => SHA384Digest(),
+    sha512 => SHA512Digest(),
+    sha3_256 => SHA3Digest(256),
+    sha3_512 => SHA3Digest(512),
+  };
 }

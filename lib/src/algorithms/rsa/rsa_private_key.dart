@@ -54,8 +54,9 @@ class FortisRsaPrivateKey {
   /// This is a convenience wrapper over [toDer]. The resulting string is
   /// DER encoded as Base64, not PEM.
   /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
-  String toDerBase64({RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8}) =>
-      base64Encode(toDer(format: format));
+  String toDerBase64({
+    RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8,
+  }) => base64Encode(toDer(format: format));
 
   // ---------------------------------------------------------------------------
   // Deserialization
@@ -135,17 +136,19 @@ class FortisRsaPrivateKey {
     final dq = d.remainder(q - BigInt.one);
     final qp = q.modInverse(p);
 
-    return ASN1Sequence(elements: [
-      ASN1Integer.fromtInt(0), // version
-      ASN1Integer(n),
-      ASN1Integer(e),
-      ASN1Integer(d),
-      ASN1Integer(p),
-      ASN1Integer(q),
-      ASN1Integer(dp),
-      ASN1Integer(dq),
-      ASN1Integer(qp),
-    ]).encode();
+    return ASN1Sequence(
+      elements: [
+        ASN1Integer.fromtInt(0), // version
+        ASN1Integer(n),
+        ASN1Integer(e),
+        ASN1Integer(d),
+        ASN1Integer(p),
+        ASN1Integer(q),
+        ASN1Integer(dp),
+        ASN1Integer(dq),
+        ASN1Integer(qp),
+      ],
+    ).encode();
   }
 
   Uint8List _encodePkcs8() {

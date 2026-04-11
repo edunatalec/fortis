@@ -43,9 +43,7 @@ Uint8List oaepV21Encrypt({
   db.setAll(separatorIdx + 1, message);
 
   // 3. seed — random hLen bytes
-  final seed = Uint8List.fromList(
-    List.generate(hLen, (_) => rng.nextInt(256)),
-  );
+  final seed = Uint8List.fromList(List.generate(hLen, (_) => rng.nextInt(256)));
 
   // 4. maskedDB = DB XOR MGF1(seed, dbLen)
   final maskedDb = _xor(db, _mgf1(seed, dbLen, digest));
@@ -60,8 +58,7 @@ Uint8List oaepV21Encrypt({
   em.setAll(1 + hLen, maskedDb);
 
   // 7. RSA encryption — RSAEngine accepts up to inputBlockSize+1 = k bytes
-  final engine = RSAEngine()
-    ..init(true, PublicKeyParameter<RSAPublicKey>(key));
+  final engine = RSAEngine()..init(true, PublicKeyParameter<RSAPublicKey>(key));
   final out = Uint8List(engine.outputBlockSize);
   engine.processBlock(em, 0, em.length, out, 0);
   return out;

@@ -13,8 +13,5 @@ class FortisRsaKeyPair {
   final FortisRsaPrivateKey privateKey;
 
   /// Creates an [FortisRsaKeyPair] from the given [publicKey] and [privateKey].
-  const FortisRsaKeyPair({
-    required this.publicKey,
-    required this.privateKey,
-  });
+  const FortisRsaKeyPair({required this.publicKey, required this.privateKey});
 }

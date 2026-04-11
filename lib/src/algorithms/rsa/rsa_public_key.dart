@@ -126,10 +126,9 @@ class FortisRsaPublicKey {
   // ---------------------------------------------------------------------------
 
   Uint8List _encodeX509() {
-    final rsaSeq = ASN1Sequence(elements: [
-      ASN1Integer(key.modulus),
-      ASN1Integer(key.publicExponent),
-    ]);
+    final rsaSeq = ASN1Sequence(
+      elements: [ASN1Integer(key.modulus), ASN1Integer(key.publicExponent)],
+    );
 
     final algorithmId = ASN1AlgorithmIdentifier.fromIdentifier(
       '1.2.840.113549.1.1.1',
@@ -145,10 +144,9 @@ class FortisRsaPublicKey {
   }
 
   Uint8List _encodePkcs1() {
-    return ASN1Sequence(elements: [
-      ASN1Integer(key.modulus),
-      ASN1Integer(key.publicExponent),
-    ]).encode();
+    return ASN1Sequence(
+      elements: [ASN1Integer(key.modulus), ASN1Integer(key.publicExponent)],
+    ).encode();
   }
 
   // ---------------------------------------------------------------------------
@@ -160,8 +158,9 @@ class FortisRsaPublicKey {
     final seq = parser.nextObject() as ASN1Sequence;
     final spki = ASN1SubjectPublicKeyInfo.fromSequence(seq);
 
-    final bitStringBytes =
-        Uint8List.fromList(spki.subjectPublicKey.stringValues!);
+    final bitStringBytes = Uint8List.fromList(
+      spki.subjectPublicKey.stringValues!,
+    );
     return _decodePkcs1(bitStringBytes);
   }
 
