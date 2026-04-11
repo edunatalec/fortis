@@ -152,35 +152,16 @@ class AesEncrypter {
 
   Uint8List _encryptCfb(Uint8List plaintext) {
     final iv = _randomBytes(16);
-    // Use PaddedBlockCipherImpl internally so any input length is accepted.
-    final cipher = _paddedBlockCipher(
-      AesPadding.pkcs7,
-      CFBBlockCipher(AESEngine(), 16),
-    );
-    cipher.init(
-      true,
-      PaddedBlockCipherParameters(
-        ParametersWithIV(KeyParameter(_key.toBytes()), iv),
-        null,
-      ),
-    );
-    return _prepend(iv, cipher.process(plaintext));
+    final cipher = CFBBlockCipher(AESEngine(), 16);
+    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+    return _prepend(iv, _processStreamBlockCipher(cipher, plaintext));
   }
 
   Uint8List _encryptOfb(Uint8List plaintext) {
     final iv = _randomBytes(16);
-    final cipher = _paddedBlockCipher(
-      AesPadding.pkcs7,
-      OFBBlockCipher(AESEngine(), 16),
-    );
-    cipher.init(
-      true,
-      PaddedBlockCipherParameters(
-        ParametersWithIV(KeyParameter(_key.toBytes()), iv),
-        null,
-      ),
-    );
-    return _prepend(iv, cipher.process(plaintext));
+    final cipher = OFBBlockCipher(AESEngine(), 16);
+    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+    return _prepend(iv, _processStreamBlockCipher(cipher, plaintext));
   }
 
   // ──────────────────────────────────────────────
@@ -188,7 +169,7 @@ class AesEncrypter {
   // ──────────────────────────────────────────────
 
   Uint8List _encryptGcm(Uint8List plaintext) {
-    final iv = _randomBytes(16);
+    final iv = _randomBytes(12); // NIST SP 800-38D: 96 bits (12 bytes) recomendado
     final cipher = GCMBlockCipher(AESEngine());
     cipher.init(
       true,
@@ -221,6 +202,32 @@ class AesEncrypter {
   // ──────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────
+
+  /// Processa [input] com [cipher] bloco a bloco, sem padding.
+  ///
+  /// Blocos completos são processados diretamente. O último bloco parcial
+  /// é preenchido com zeros, processado, e apenas os bytes necessários são
+  /// copiados — garantindo que a saída tenha o mesmo tamanho da entrada.
+  Uint8List _processStreamBlockCipher(BlockCipher cipher, Uint8List input) {
+    const blockSize = 16;
+    final output = Uint8List(input.length);
+    var offset = 0;
+
+    while (offset + blockSize <= input.length) {
+      cipher.processBlock(input, offset, output, offset);
+      offset += blockSize;
+    }
+
+    if (offset < input.length) {
+      final remaining = input.length - offset;
+      final tmp = Uint8List(blockSize)..setRange(0, remaining, input, offset);
+      final tmpOut = Uint8List(blockSize);
+      cipher.processBlock(tmp, 0, tmpOut, 0);
+      output.setRange(offset, output.length, tmpOut);
+    }
+
+    return output;
+  }
 
   PaddedBlockCipherImpl _paddedBlockCipher(
     AesPadding padding,

@@ -160,19 +160,9 @@ class AesDecrypter {
     }
     final iv = ciphertext.sublist(0, 16);
     final body = ciphertext.sublist(16);
-    // Mirror the internal PKCS7 padding used during encryption.
-    final cipher = _paddedBlockCipher(
-      AesPadding.pkcs7,
-      CFBBlockCipher(AESEngine(), 16),
-    );
-    cipher.init(
-      false,
-      PaddedBlockCipherParameters(
-        ParametersWithIV(KeyParameter(_key.toBytes()), iv),
-        null,
-      ),
-    );
-    return cipher.process(body);
+    final cipher = CFBBlockCipher(AESEngine(), 16);
+    cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+    return _processStreamBlockCipher(cipher, body);
   }
 
   Uint8List _decryptOfb(Uint8List ciphertext) {
@@ -184,18 +174,9 @@ class AesDecrypter {
     }
     final iv = ciphertext.sublist(0, 16);
     final body = ciphertext.sublist(16);
-    final cipher = _paddedBlockCipher(
-      AesPadding.pkcs7,
-      OFBBlockCipher(AESEngine(), 16),
-    );
-    cipher.init(
-      false,
-      PaddedBlockCipherParameters(
-        ParametersWithIV(KeyParameter(_key.toBytes()), iv),
-        null,
-      ),
-    );
-    return cipher.process(body);
+    final cipher = OFBBlockCipher(AESEngine(), 16);
+    cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+    return _processStreamBlockCipher(cipher, body);
   }
 
   // ──────────────────────────────────────────────
@@ -203,14 +184,14 @@ class AesDecrypter {
   // ──────────────────────────────────────────────
 
   Uint8List _decryptGcm(Uint8List ciphertext) {
-    if (ciphertext.length < 16) {
+    if (ciphertext.length < 12) {
       throw FortisEncryptionException(
         'Ciphertext too short for GCM mode '
-        '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
+        '(expected at least 12 bytes for nonce, got ${ciphertext.length}).',
       );
     }
-    final iv = ciphertext.sublist(0, 16);
-    final body = ciphertext.sublist(16); // ciphertext + auth tag
+    final iv = ciphertext.sublist(0, 12); // NIST SP 800-38D: 96 bits (12 bytes)
+    final body = ciphertext.sublist(12); // ciphertext + auth tag
     final cipher = GCMBlockCipher(AESEngine());
     cipher.init(
       false,
@@ -263,6 +244,32 @@ class AesDecrypter {
   // ──────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────
+
+  /// Processa [input] com [cipher] bloco a bloco, sem padding.
+  ///
+  /// Blocos completos são processados diretamente. O último bloco parcial
+  /// é preenchido com zeros, processado, e apenas os bytes necessários são
+  /// copiados — garantindo que a saída tenha o mesmo tamanho da entrada.
+  Uint8List _processStreamBlockCipher(BlockCipher cipher, Uint8List input) {
+    const blockSize = 16;
+    final output = Uint8List(input.length);
+    var offset = 0;
+
+    while (offset + blockSize <= input.length) {
+      cipher.processBlock(input, offset, output, offset);
+      offset += blockSize;
+    }
+
+    if (offset < input.length) {
+      final remaining = input.length - offset;
+      final tmp = Uint8List(blockSize)..setRange(0, remaining, input, offset);
+      final tmpOut = Uint8List(blockSize);
+      cipher.processBlock(tmp, 0, tmpOut, 0);
+      output.setRange(offset, output.length, tmpOut);
+    }
+
+    return output;
+  }
 
   PaddedBlockCipherImpl _paddedBlockCipher(
     AesPadding padding,

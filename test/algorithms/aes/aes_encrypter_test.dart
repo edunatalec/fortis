@@ -30,6 +30,12 @@ void main() {
       expect(encrypter.encrypt(plaintext), isNotEmpty);
     });
 
+    test('nonce tem 12 bytes (NIST SP 800-38D)', () {
+      // ciphertext = nonce(12) + encrypted_data + auth_tag(16)
+      final ciphertext = encrypter.encrypt(plaintext);
+      expect(ciphertext.length, equals(12 + plaintext.length + 16));
+    });
+
     test('encrypted output differs from plaintext', () {
       expect(encrypter.encrypt(plaintext), isNot(equals(plaintext)));
     });
@@ -105,6 +111,16 @@ void main() {
     test('encrypts with OFB', () {
       final enc = Fortis.aes().mode(AesMode.ofb).key(key).encrypter();
       expect(enc.encrypt(plaintext), isNotEmpty);
+    });
+
+    test('CFB ciphertext tem tamanho IV(16) + plaintext (sem padding extra)', () {
+      final enc = Fortis.aes().mode(AesMode.cfb).key(key).encrypter();
+      expect(enc.encrypt(plaintext).length, equals(16 + plaintext.length));
+    });
+
+    test('OFB ciphertext tem tamanho IV(16) + plaintext (sem padding extra)', () {
+      final enc = Fortis.aes().mode(AesMode.ofb).key(key).encrypter();
+      expect(enc.encrypt(plaintext).length, equals(16 + plaintext.length));
     });
   });
 
