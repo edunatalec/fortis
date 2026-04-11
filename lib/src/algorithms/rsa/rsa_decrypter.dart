@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
@@ -61,6 +62,18 @@ class RsaDecrypter {
       throw FortisEncryptionException('Decryption failed: $e');
     }
   }
+
+  /// Decrypts raw ciphertext bytes and returns a UTF-8 string.
+  String decryptToString(Uint8List ciphertext) =>
+      utf8.decode(decrypt(ciphertext));
+
+  /// Decrypts a Base64-encoded ciphertext string and returns raw bytes.
+  Uint8List decryptFromBase64(String base64Ciphertext) =>
+      decrypt(base64Decode(base64Ciphertext));
+
+  /// Decrypts a Base64-encoded ciphertext string and returns a UTF-8 string.
+  String decryptFromBase64ToString(String base64Ciphertext) =>
+      utf8.decode(decryptFromBase64(base64Ciphertext));
 
   // ---------------------------------------------------------------------------
   // Padding implementations

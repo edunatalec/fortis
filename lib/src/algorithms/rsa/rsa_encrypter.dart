@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:math';
 import 'dart:typed_data';
@@ -64,6 +65,17 @@ class RsaEncrypter {
       throw FortisEncryptionException('Encryption failed: $e');
     }
   }
+
+  /// Encrypts a UTF-8 string and returns raw ciphertext bytes.
+  Uint8List encryptString(String plaintext) =>
+      encrypt(Uint8List.fromList(utf8.encode(plaintext)));
+
+  /// Encrypts raw bytes and returns a Base64-encoded ciphertext string.
+  String encryptToBase64(Uint8List data) => base64Encode(encrypt(data));
+
+  /// Encrypts a UTF-8 string and returns a Base64-encoded ciphertext string.
+  String encryptStringToBase64(String plaintext) =>
+      base64Encode(encryptString(plaintext));
 
   // ---------------------------------------------------------------------------
   // Padding implementations

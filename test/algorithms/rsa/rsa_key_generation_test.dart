@@ -1,34 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:fortis/fortis.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('teste', () async {
-    final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
-
-    final encrypter = Fortis.rsa()
-        .padding(RsaPadding.oaep_v2_1)
-        .hash(RsaHash.sha256)
-        .encrypter(pair.publicKey);
-
-    final ciphertext = encrypter.encrypt(
-      Uint8List.fromList('Hello World'.codeUnits),
-    );
-
-    print(base64.encode(ciphertext));
-
-    final dencrypter = Fortis.rsa()
-        .padding(RsaPadding.oaep_v2_1)
-        .hash(RsaHash.sha256)
-        .decrypter(pair.privateKey);
-
-    final decrypted = dencrypter.decrypt(ciphertext);
-
-    print(String.fromCharCodes(decrypted));
-  });
-
   group('RsaBuilder — key generation', () {
     test('generates RSA-2048 key pair successfully', () async {
       final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
@@ -82,5 +57,72 @@ void main() {
         isNot(equals(pair2.publicKey.key.modulus)),
       );
     });
+  });
+
+  group('FortisRsaPublicKey — Base64 serialization', () {
+    late FortisRsaKeyPair pair;
+
+    setUpAll(() async {
+      pair = await Fortis.rsa().keySize(2048).generateKeyPair();
+    });
+
+    test('toDerBase64 returns a non-empty Base64 string', () {
+      final b64 = pair.publicKey.toDerBase64();
+      expect(b64, isNotEmpty);
+      // A valid Base64 string decodes without error
+      expect(() => base64Decode(b64), returnsNormally);
+    });
+
+    test(
+      'round-trip: toDerBase64 → fromDerBase64 → toDerBase64 equals original',
+      () {
+        final original = pair.publicKey.toDerBase64();
+        final restored = FortisRsaPublicKey.fromDerBase64(original);
+        expect(restored.toDerBase64(), equals(original));
+      },
+    );
+
+    test(
+      'fromDerBase64 with invalid Base64 string throws FortisKeyException',
+      () {
+        expect(
+          () => FortisRsaPublicKey.fromDerBase64('not-valid-base64!!!'),
+          throwsA(isA<FortisKeyException>()),
+        );
+      },
+    );
+  });
+
+  group('FortisRsaPrivateKey — Base64 serialization', () {
+    late FortisRsaKeyPair pair;
+
+    setUpAll(() async {
+      pair = await Fortis.rsa().keySize(2048).generateKeyPair();
+    });
+
+    test('toDerBase64 returns a non-empty Base64 string', () {
+      final b64 = pair.privateKey.toDerBase64();
+      expect(b64, isNotEmpty);
+      expect(() => base64Decode(b64), returnsNormally);
+    });
+
+    test(
+      'round-trip: toDerBase64 → fromDerBase64 → toDerBase64 equals original',
+      () {
+        final original = pair.privateKey.toDerBase64();
+        final restored = FortisRsaPrivateKey.fromDerBase64(original);
+        expect(restored.toDerBase64(), equals(original));
+      },
+    );
+
+    test(
+      'fromDerBase64 with invalid Base64 string throws FortisKeyException',
+      () {
+        expect(
+          () => FortisRsaPrivateKey.fromDerBase64('not-valid-base64!!!'),
+          throwsA(isA<FortisKeyException>()),
+        );
+      },
+    );
   });
 }

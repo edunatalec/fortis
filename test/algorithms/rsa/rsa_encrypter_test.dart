@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:fortis/fortis.dart';
@@ -48,6 +49,27 @@ void main() {
       // returns the correct type.
       final builder = Fortis.rsa();
       expect(builder, isA<RsaBuilder>());
+    });
+
+    test('encryptString returns non-empty bytes for a UTF-8 string', () {
+      final encrypter = makeEncrypter();
+      final result = encrypter.encryptString('hello fortis');
+      expect(result, isNotEmpty);
+    });
+
+    test('encryptToBase64 returns a non-empty Base64 string', () {
+      final encrypter = makeEncrypter();
+      final result = encrypter.encryptToBase64(plaintext);
+      expect(result, isNotEmpty);
+      // Must be valid Base64
+      expect(() => base64Decode(result), returnsNormally);
+    });
+
+    test('encryptStringToBase64 returns a non-empty Base64 string', () {
+      final encrypter = makeEncrypter();
+      final result = encrypter.encryptStringToBase64('hello fortis');
+      expect(result, isNotEmpty);
+      expect(() => base64Decode(result), returnsNormally);
     });
   });
 }

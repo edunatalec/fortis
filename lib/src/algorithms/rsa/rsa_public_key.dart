@@ -49,6 +49,14 @@ class FortisRsaPublicKey {
     };
   }
 
+  /// Exports the public key as a Base64-encoded DER string.
+  ///
+  /// This is a convenience wrapper over [toDer]. The resulting string is
+  /// DER encoded as Base64, not PEM.
+  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
+  String toDerBase64({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) =>
+      base64Encode(toDer(format: format));
+
   // ---------------------------------------------------------------------------
   // Deserialization
   // ---------------------------------------------------------------------------
@@ -69,6 +77,26 @@ class FortisRsaPublicKey {
     } catch (e) {
       if (e is FortisKeyException) rethrow;
       throw FortisKeyException('Invalid PEM for RSA public key: $e');
+    }
+  }
+
+  /// Imports a public key from a Base64-encoded DER string.
+  ///
+  /// This is a convenience wrapper over [fromDer]. The input must be a plain
+  /// Base64 string (not PEM). [format] defaults to [RsaPublicKeyFormat.x509].
+  ///
+  /// Throws [FortisKeyException] if the string is not valid Base64 or DER.
+  factory FortisRsaPublicKey.fromDerBase64(
+    String base64, {
+    RsaPublicKeyFormat format = RsaPublicKeyFormat.x509,
+  }) {
+    try {
+      return FortisRsaPublicKey.fromDer(base64Decode(base64), format: format);
+    } catch (e) {
+      if (e is FortisKeyException) rethrow;
+      throw FortisKeyException(
+        'Invalid Base64-encoded DER for RSA public key: $e',
+      );
     }
   }
 
