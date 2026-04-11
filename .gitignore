@@ -1,0 +1,18 @@
+# Dart
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# Test coverage
+coverage/
+.dart_tool/package_config.json
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
