@@ -16,15 +16,13 @@ void main() {
     FortisRsaKeyPair kp, {
     RsaPadding padding = RsaPadding.oaep_v2,
     RsaHash hash = RsaHash.sha256,
-  }) =>
-      Fortis.rsa().padding(padding).hash(hash).encrypter(kp.publicKey);
+  }) => Fortis.rsa().padding(padding).hash(hash).encrypter(kp.publicKey);
 
   RsaDecrypter makeDecrypter(
     FortisRsaKeyPair kp, {
     RsaPadding padding = RsaPadding.oaep_v2,
     RsaHash hash = RsaHash.sha256,
-  }) =>
-      Fortis.rsa().padding(padding).hash(hash).decrypter(kp.privateKey);
+  }) => Fortis.rsa().padding(padding).hash(hash).decrypter(kp.privateKey);
 
   final plaintext = Uint8List.fromList('hello fortis'.codeUnits);
 
@@ -37,10 +35,13 @@ void main() {
       expect(recovered, equals(plaintext));
     });
 
-    test('end-to-end: encrypt(Uint8List) → decrypt(Uint8List) → equals original', () {
-      final ciphertext = makeEncrypter(pair).encrypt(plaintext);
-      expect(makeDecrypter(pair).decrypt(ciphertext), equals(plaintext));
-    });
+    test(
+      'end-to-end: encrypt(Uint8List) → decrypt(Uint8List) → equals original',
+      () {
+        final ciphertext = makeEncrypter(pair).encrypt(plaintext);
+        expect(makeDecrypter(pair).decrypt(ciphertext), equals(plaintext));
+      },
+    );
   });
 
   // ── decrypt(Object input) — String (Base64) ────────────────────────────
@@ -52,14 +53,14 @@ void main() {
       expect(recovered, equals(plaintext));
     });
 
-    test('end-to-end: encryptToString(String) → decrypt(String) → equals original bytes', () {
-      final b64 = makeEncrypter(pair).encryptToString('hello fortis');
-      final recovered = makeDecrypter(pair).decrypt(b64);
-      expect(
-        recovered,
-        equals(Uint8List.fromList('hello fortis'.codeUnits)),
-      );
-    });
+    test(
+      'end-to-end: encryptToString(String) → decrypt(String) → equals original bytes',
+      () {
+        final b64 = makeEncrypter(pair).encryptToString('hello fortis');
+        final recovered = makeDecrypter(pair).decrypt(b64);
+        expect(recovered, equals(Uint8List.fromList('hello fortis'.codeUnits)));
+      },
+    );
   });
 
   // ── decrypt(Object input) — unsupported type ───────────────────────────
@@ -88,17 +89,26 @@ void main() {
       expect(makeDecrypter(pair).decryptToString(b64), equals(original));
     });
 
-    test('end-to-end: encrypt(String) → decryptToString(Uint8List) → equals original', () {
-      const original = 'hello fortis';
-      final ciphertext = makeEncrypter(pair).encrypt(original);
-      expect(makeDecrypter(pair).decryptToString(ciphertext), equals(original));
-    });
+    test(
+      'end-to-end: encrypt(String) → decryptToString(Uint8List) → equals original',
+      () {
+        const original = 'hello fortis';
+        final ciphertext = makeEncrypter(pair).encrypt(original);
+        expect(
+          makeDecrypter(pair).decryptToString(ciphertext),
+          equals(original),
+        );
+      },
+    );
 
-    test('end-to-end: encryptToString(String) → decryptToString(String) → equals original', () {
-      const original = 'Fortis é uma biblioteca de criptografia!';
-      final b64 = makeEncrypter(pair).encryptToString(original);
-      expect(makeDecrypter(pair).decryptToString(b64), equals(original));
-    });
+    test(
+      'end-to-end: encryptToString(String) → decryptToString(String) → equals original',
+      () {
+        const original = 'Fortis é uma biblioteca de criptografia!';
+        final b64 = makeEncrypter(pair).encryptToString(original);
+        expect(makeDecrypter(pair).decryptToString(b64), equals(original));
+      },
+    );
 
     test('unsupported input type throws FortisConfigException', () {
       expect(

@@ -2,7 +2,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
-import '../../core/fortis_crypto_warning.dart';
+import '../../core/fortis_log.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import 'aes_decrypter.dart';
 import 'aes_encrypter.dart';
@@ -178,7 +178,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
   ///
   /// **GCM** ([AesMode.gcm]): any size >= 1 is accepted. Per NIST SP 800-38D,
   /// 96 bits (12 bytes) is the recommended size for performance and security.
-  /// A [FortisCryptoWarning] is logged if [size] exceeds 16 bytes.
+  /// A [FortisLog] warning is emitted if [size] exceeds 16 bytes.
   /// Defaults to 12 bytes.
   ///
   /// **CCM** ([AesMode.ccm]): size must be between 7 and 13 bytes per RFC 3610
@@ -202,7 +202,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
         );
       }
       if (size > 16) {
-        FortisCryptoWarning.log(
+        FortisLog.warn(
           'GCM IV size of $size bytes is unusual. '
           'The NIST SP 800-38D recommended size is 12 bytes (96 bits). '
           'Values above 16 bytes may indicate a design issue.',

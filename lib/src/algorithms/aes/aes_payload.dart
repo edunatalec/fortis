@@ -15,10 +15,7 @@ class AesPayload {
   final String data;
 
   /// Creates an [AesPayload] with the given [iv] and [data].
-  const AesPayload({
-    required this.iv,
-    required this.data,
-  });
+  const AesPayload({required this.iv, required this.data});
 
   /// Converts this payload to a [Map<String, String>].
   ///
@@ -31,8 +28,5 @@ class AesPayload {
   /// payload.toMap()                // {'iv': '...', 'data': '...'}
   /// payload.toMap(ivKey: 'nonce')  // {'nonce': '...', 'data': '...'}
   /// ```
-  Map<String, String> toMap({String ivKey = 'iv'}) => {
-        ivKey: iv,
-        'data': data,
-      };
+  Map<String, String> toMap({String ivKey = 'iv'}) => {ivKey: iv, 'data': data};
 }

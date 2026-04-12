@@ -72,8 +72,9 @@ void main() {
 
     test("throws FortisConfigException when both 'iv' and 'nonce' present", () {
       expect(
-        () => dec(AesMode.gcm)
-            .decrypt({'iv': 'a', 'nonce': 'b', 'data': 'c', 'tag': 'd'}),
+        () => dec(
+          AesMode.gcm,
+        ).decrypt({'iv': 'a', 'nonce': 'b', 'data': 'c', 'tag': 'd'}),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -237,8 +238,9 @@ void main() {
 
     test('recovers original UTF-8 string from Base64 String', () {
       expect(
-        dec(AesMode.gcm)
-            .decryptToString(enc(AesMode.gcm).encryptToString(plaintext)),
+        dec(
+          AesMode.gcm,
+        ).decryptToString(enc(AesMode.gcm).encryptToString(plaintext)),
         equals(plaintext),
       );
     });
@@ -293,13 +295,16 @@ void main() {
 
     for (final mode in modes) {
       for (final size in keySizes) {
-        test('round-trip: ${mode.name.toUpperCase()} + $size-bit key', () async {
-          final k = await Fortis.aes().keySize(size).generateKey();
-          final encrypter = Fortis.aes().mode(mode).encrypter(k);
-          final decrypter = Fortis.aes().mode(mode).decrypter(k);
-          final cipher = encrypter.encrypt(plaintext);
-          expect(decrypter.decryptToString(cipher), equals(plaintext));
-        });
+        test(
+          'round-trip: ${mode.name.toUpperCase()} + $size-bit key',
+          () async {
+            final k = await Fortis.aes().keySize(size).generateKey();
+            final encrypter = Fortis.aes().mode(mode).encrypter(k);
+            final decrypter = Fortis.aes().mode(mode).decrypter(k);
+            final cipher = encrypter.encrypt(plaintext);
+            expect(decrypter.decryptToString(cipher), equals(plaintext));
+          },
+        );
       }
     }
   });
@@ -355,12 +360,12 @@ void main() {
       final ciphertext = enc(AesMode.gcm).encrypt(plaintext);
       final iv = base64Encode(ciphertext.sublist(0, 12));
       final tag = base64Encode(ciphertext.sublist(ciphertext.length - 16));
-      final data =
-          base64Encode(ciphertext.sublist(12, ciphertext.length - 16));
+      final data = base64Encode(ciphertext.sublist(12, ciphertext.length - 16));
 
       expect(
-        dec(AesMode.gcm)
-            .decryptToString({'nonce': iv, 'data': data, 'tag': tag}),
+        dec(
+          AesMode.gcm,
+        ).decryptToString({'nonce': iv, 'data': data, 'tag': tag}),
         equals(plaintext),
       );
     });

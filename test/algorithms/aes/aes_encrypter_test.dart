@@ -72,8 +72,9 @@ void main() {
 
   group('encryptToString', () {
     test('accepts Uint8List and returns valid Base64 string', () {
-      final result =
-          enc(AesMode.gcm).encryptToString(Uint8List.fromList([1, 2, 3]));
+      final result = enc(
+        AesMode.gcm,
+      ).encryptToString(Uint8List.fromList([1, 2, 3]));
       expect(result, isA<String>());
       expect(() => base64Decode(result), returnsNormally);
     });

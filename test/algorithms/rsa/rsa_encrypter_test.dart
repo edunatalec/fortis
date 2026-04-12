@@ -14,13 +14,13 @@ void main() {
   RsaEncrypter makeEncrypter({
     RsaPadding padding = RsaPadding.oaep_v2,
     RsaHash hash = RsaHash.sha256,
-  }) =>
-      Fortis.rsa().padding(padding).hash(hash).encrypter(pair.publicKey);
+  }) => Fortis.rsa().padding(padding).hash(hash).encrypter(pair.publicKey);
 
   group('encrypt(Object plaintext)', () {
     test('accepts Uint8List plaintext → returns non-empty Uint8List', () {
-      final result =
-          makeEncrypter().encrypt(Uint8List.fromList([1, 2, 3, 4, 5]));
+      final result = makeEncrypter().encrypt(
+        Uint8List.fromList([1, 2, 3, 4, 5]),
+      );
       expect(result, isA<Uint8List>());
       expect(result, isNotEmpty);
     });
@@ -57,8 +57,9 @@ void main() {
 
   group('encryptToString(Object plaintext)', () {
     test('accepts Uint8List plaintext → returns valid Base64 string', () {
-      final result =
-          makeEncrypter().encryptToString(Uint8List.fromList([1, 2, 3]));
+      final result = makeEncrypter().encryptToString(
+        Uint8List.fromList([1, 2, 3]),
+      );
       expect(result, isA<String>());
       expect(result, isNotEmpty);
       expect(() => base64Decode(result), returnsNormally);

@@ -43,9 +43,6 @@ export 'src/algorithms/aes/aes_builder.dart';
 export 'src/algorithms/aes/aes_encrypter.dart';
 export 'src/algorithms/aes/aes_decrypter.dart';
 
-// Warnings
-export 'src/core/fortis_crypto_warning.dart';
-
 /// Entry point for the Fortis cryptography library.
 ///
 /// ```dart

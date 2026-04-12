@@ -38,8 +38,8 @@ class AesAuthPayload {
   /// payload.toMap(ivKey: 'nonce') // {'nonce': '...', 'data': '...', 'tag': '...'}
   /// ```
   Map<String, String> toMap({String ivKey = 'iv'}) => {
-        ivKey: iv,
-        'data': data,
-        'tag': tag,
-      };
+    ivKey: iv,
+    'data': data,
+    'tag': tag,
+  };
 }

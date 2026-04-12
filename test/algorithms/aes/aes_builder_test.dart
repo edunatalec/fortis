@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:fortis/fortis.dart';
+import 'package:fortis/src/core/fortis_log.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -10,14 +11,15 @@ void main() {
     key = await Fortis.aes().keySize(256).generateKey();
   });
 
-  // ── FortisCryptoWarning ───────────────────────────────────────────────────
+  // ── FortisLog ─────────────────────────────────────────────────────────────
 
-  group('FortisCryptoWarning', () {
-    test('log() does not throw', () {
-      expect(
-        () => FortisCryptoWarning.log('test warning message'),
-        returnsNormally,
-      );
+  group('FortisLog', () {
+    test('info() does not throw', () {
+      expect(() => FortisLog.info('test info message'), returnsNormally);
+    });
+
+    test('warn() does not throw', () {
+      expect(() => FortisLog.warn('test warning message'), returnsNormally);
     });
   });
 
@@ -39,23 +41,17 @@ void main() {
       expect(() => gcm().nonceSize(16), returnsNormally);
     });
 
-    test('nonceSize(17) is valid but logs a FortisCryptoWarning', () {
+    test('nonceSize(17) is valid but logs a FortisLog.warn', () {
       // Warning is sent to dart:developer; no exception is thrown.
       expect(() => gcm().nonceSize(17), returnsNormally);
     });
 
     test('nonceSize(0) throws FortisConfigException', () {
-      expect(
-        () => gcm().nonceSize(0),
-        throwsA(isA<FortisConfigException>()),
-      );
+      expect(() => gcm().nonceSize(0), throwsA(isA<FortisConfigException>()));
     });
 
     test('nonceSize(-1) throws FortisConfigException', () {
-      expect(
-        () => gcm().nonceSize(-1),
-        throwsA(isA<FortisConfigException>()),
-      );
+      expect(() => gcm().nonceSize(-1), throwsA(isA<FortisConfigException>()));
     });
   });
 
@@ -78,17 +74,11 @@ void main() {
     });
 
     test('nonceSize(6) throws FortisConfigException', () {
-      expect(
-        () => ccm().nonceSize(6),
-        throwsA(isA<FortisConfigException>()),
-      );
+      expect(() => ccm().nonceSize(6), throwsA(isA<FortisConfigException>()));
     });
 
     test('nonceSize(14) throws FortisConfigException', () {
-      expect(
-        () => ccm().nonceSize(14),
-        throwsA(isA<FortisConfigException>()),
-      );
+      expect(() => ccm().nonceSize(14), throwsA(isA<FortisConfigException>()));
     });
   });
 
@@ -141,14 +131,12 @@ void main() {
   group('nonceSize() — CCM round-trip', () {
     for (final size in [7, 11, 13]) {
       test('nonceSize($size) encrypt → decrypt recovers plaintext', () {
-        final encrypter =
-            (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-                .nonceSize(size)
-                .encrypter(key);
-        final decrypter =
-            (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-                .nonceSize(size)
-                .decrypter(key);
+        final encrypter = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
+            .nonceSize(size)
+            .encrypter(key);
+        final decrypter = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
+            .nonceSize(size)
+            .decrypter(key);
         final cipher = encrypter.encrypt('hello fortis');
         expect(decrypter.decryptToString(cipher), equals('hello fortis'));
       });

@@ -255,7 +255,10 @@ class AesEncrypter {
   Uint8List _encryptCtr(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(16, iv, 'CTR');
     final cipher = CTRStreamCipher(AESEngine());
-    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv));
+    cipher.init(
+      true,
+      ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv),
+    );
     final ciphertext = Uint8List(plaintext.length);
     cipher.processBytes(plaintext, 0, plaintext.length, ciphertext, 0);
     return _prepend(resolvedIv, ciphertext);
@@ -264,14 +267,20 @@ class AesEncrypter {
   Uint8List _encryptCfb(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(16, iv, 'CFB');
     final cipher = CFBBlockCipher(AESEngine(), 16);
-    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv));
+    cipher.init(
+      true,
+      ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv),
+    );
     return _prepend(resolvedIv, _processStreamBlockCipher(cipher, plaintext));
   }
 
   Uint8List _encryptOfb(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(16, iv, 'OFB');
     final cipher = OFBBlockCipher(AESEngine(), 16);
-    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv));
+    cipher.init(
+      true,
+      ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv),
+    );
     return _prepend(resolvedIv, _processStreamBlockCipher(cipher, plaintext));
   }
 

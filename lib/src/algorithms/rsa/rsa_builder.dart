@@ -1,10 +1,10 @@
-import 'dart:developer' as dev;
 import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
+import '../../core/fortis_log.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import 'rsa_decrypter.dart';
 import 'rsa_encrypter.dart';
@@ -106,11 +106,7 @@ class RsaBuilder<
     _validateKeySize(_keySize);
 
     if (_keySize == 4096) {
-      dev.log(
-        'RSA-4096 key generation may be slow.',
-        name: 'fortis',
-        level: 500,
-      );
+      FortisLog.info('RSA-4096 key generation may be slow.');
     }
 
     return Isolate.run(() => _generateSync(_keySize));

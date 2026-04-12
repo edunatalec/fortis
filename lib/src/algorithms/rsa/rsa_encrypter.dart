@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:developer' as dev;
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
+import '../../core/fortis_log.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_encryption_exception.dart';
 import 'rsa_hash.dart';
@@ -135,10 +135,8 @@ class RsaEncrypter {
   void _warnIfNeeded() {
     final bitLength = key.key.modulus?.bitLength ?? 0;
     if (bitLength <= 2048 && hash == RsaHash.sha512) {
-      dev.log(
+      FortisLog.info(
         'RSA-2048 with SHA-512 is uncommon and may fail for large plaintexts.',
-        name: 'fortis',
-        level: 500,
       );
     }
   }
