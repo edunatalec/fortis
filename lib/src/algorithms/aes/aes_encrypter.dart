@@ -6,9 +6,11 @@ import 'package:pointycastle/export.dart';
 
 import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_encryption_exception.dart';
+import 'aes_auth_payload.dart';
 import 'aes_key.dart';
 import 'aes_mode.dart';
 import 'aes_padding.dart';
+import 'aes_payload.dart';
 
 /// Encrypts data using AES.
 ///
@@ -28,7 +30,7 @@ import 'aes_padding.dart';
 ///
 /// Modes CBC, CTR, CFB, and OFB use the term **IV** internally and in
 /// documentation. Modes GCM and CCM use the term **nonce**. They are
-/// equivalent concepts; the `nonce` parameter in [encrypt] accepts both.
+/// equivalent concepts; the `iv` parameter in [encrypt] accepts both.
 ///
 /// ## Buffer layouts
 ///
@@ -74,9 +76,81 @@ class AesEncrypter {
        _aad = aad,
        _tagSizeBits = tagSizeBits;
 
-  /// Encrypts [plaintext] and returns ciphertext with the IV/nonce prepended.
+  /// Encrypts [plaintext] and returns the combined buffer as raw bytes.
   ///
-  /// The optional [nonce] parameter allows callers to supply a specific
+  /// [plaintext] accepts:
+  /// - [Uint8List]: raw bytes, encrypted as-is.
+  /// - [String]: UTF-8 encoded before encryption.
+  ///
+  /// The optional [iv] parameter allows providing a specific initialization
+  /// vector or nonce. If omitted, a secure random IV/nonce is generated
+  /// automatically. The size must match the mode:
+  /// - ECB: iv is ignored (ECB has no IV)
+  /// - CBC, CTR, CFB, OFB: 16 bytes
+  /// - GCM: 12 bytes
+  /// - CCM: 11 bytes
+  ///
+  /// Throws [FortisConfigException] if [plaintext] is not a [String] or
+  /// [Uint8List], or if the provided [iv] has the wrong size for the mode.
+  ///
+  /// Buffer layout by mode:
+  /// - GCM/CCM: [ iv | ciphertext | tag ]
+  /// - CBC/CTR/CFB/OFB: [ iv | ciphertext ]
+  /// - ECB: [ ciphertext ]
+  Uint8List encrypt(Object plaintext, {Uint8List? iv}) {
+    return _encryptBytes(_toBytes(plaintext), iv: iv);
+  }
+
+  /// Encrypts [plaintext] and returns the result as a Base64-encoded string.
+  ///
+  /// See [encrypt] for accepted [plaintext] types and [iv] behavior.
+  String encryptToString(Object plaintext, {Uint8List? iv}) {
+    return base64Encode(encrypt(plaintext, iv: iv));
+  }
+
+  /// Encrypts [plaintext] and returns a structured payload object.
+  ///
+  /// Returns [AesAuthPayload] for authenticated modes (GCM, CCM).
+  /// Returns [AesPayload] for non-authenticated modes (CBC, CTR, CFB, OFB).
+  /// ECB mode does not support this method — use [encrypt] instead.
+  ///
+  /// See [encrypt] for accepted [plaintext] types and [iv] behavior.
+  ///
+  /// Throws [FortisConfigException] if called on ECB mode.
+  Object encryptToPayload(Object plaintext, {Uint8List? iv}) {
+    if (_mode == AesMode.ecb) {
+      throw const FortisConfigException(
+        'encryptToPayload is not supported for ECB mode. '
+        'ECB has no IV and no authentication tag. Use encrypt() instead.',
+      );
+    }
+
+    final buffer = encrypt(plaintext, iv: iv);
+
+    if (_mode == AesMode.gcm || _mode == AesMode.ccm) {
+      final nonceSize = _mode == AesMode.gcm ? 12 : 11;
+      const tagSize = 16;
+      final ivB64 = base64Encode(buffer.sublist(0, nonceSize));
+      final tag = base64Encode(buffer.sublist(buffer.length - tagSize));
+      final data = base64Encode(
+        buffer.sublist(nonceSize, buffer.length - tagSize),
+      );
+      return AesAuthPayload(iv: ivB64, data: data, tag: tag);
+    }
+
+    // CBC, CTR, CFB, OFB — IV is always 16 bytes
+    final ivB64 = base64Encode(buffer.sublist(0, 16));
+    final data = base64Encode(buffer.sublist(16));
+    return AesPayload(iv: ivB64, data: data);
+  }
+
+  // ──────────────────────────────────────────────
+  // Internal core
+  // ──────────────────────────────────────────────
+
+  /// Encrypts [plaintext] bytes and returns ciphertext with the IV/nonce prepended.
+  ///
+  /// The optional [iv] parameter allows callers to supply a specific
   /// IV or nonce — useful for interoperability with external systems that
   /// require a deterministic nonce. When omitted, a cryptographically random
   /// value is generated automatically.
@@ -88,20 +162,20 @@ class AesEncrypter {
   ///
   /// Throws [FortisConfigException] if:
   /// - [AesPadding.noPadding] is used with data that is not a multiple of 16.
-  /// - [nonce] is provided with the wrong size for the mode.
-  /// - [nonce] is provided for ECB mode.
+  /// - [iv] is provided with the wrong size for the mode.
+  /// - [iv] is provided for ECB mode.
   ///
   /// Throws [FortisEncryptionException] if encryption fails.
-  Uint8List encrypt(Uint8List plaintext, {Uint8List? nonce}) {
+  Uint8List _encryptBytes(Uint8List plaintext, {Uint8List? iv}) {
     try {
       return switch (_mode) {
-        AesMode.ecb => _encryptEcb(plaintext, nonce),
-        AesMode.cbc => _encryptCbc(plaintext, nonce),
-        AesMode.ctr => _encryptCtr(plaintext, nonce),
-        AesMode.cfb => _encryptCfb(plaintext, nonce),
-        AesMode.ofb => _encryptOfb(plaintext, nonce),
-        AesMode.gcm => _encryptGcm(plaintext, nonce),
-        AesMode.ccm => _encryptCcm(plaintext, nonce),
+        AesMode.ecb => _encryptEcb(plaintext, iv),
+        AesMode.cbc => _encryptCbc(plaintext, iv),
+        AesMode.ctr => _encryptCtr(plaintext, iv),
+        AesMode.cfb => _encryptCfb(plaintext, iv),
+        AesMode.ofb => _encryptOfb(plaintext, iv),
+        AesMode.gcm => _encryptGcm(plaintext, iv),
+        AesMode.ccm => _encryptCcm(plaintext, iv),
       };
     } on FortisEncryptionException {
       rethrow;
@@ -111,18 +185,6 @@ class AesEncrypter {
       throw FortisEncryptionException('AES encryption failed: $e');
     }
   }
-
-  /// Encrypts a UTF-8 [plaintext] string and returns ciphertext bytes.
-  Uint8List encryptString(String plaintext, {Uint8List? nonce}) =>
-      encrypt(Uint8List.fromList(utf8.encode(plaintext)), nonce: nonce);
-
-  /// Encrypts [data] and returns the ciphertext as a Base64 string.
-  String encryptToBase64(Uint8List data, {Uint8List? nonce}) =>
-      base64Encode(encrypt(data, nonce: nonce));
-
-  /// Encrypts a UTF-8 [plaintext] string and returns a Base64 string.
-  String encryptStringToBase64(String plaintext, {Uint8List? nonce}) =>
-      base64Encode(encryptString(plaintext, nonce: nonce));
 
   // ──────────────────────────────────────────────
   // Block modes
@@ -232,6 +294,21 @@ class AesEncrypter {
   // ──────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────
+
+  /// Converts [plaintext] to [Uint8List].
+  ///
+  /// Accepts [Uint8List] or [String] (UTF-8 encoded).
+  /// Throws [FortisConfigException] for any other type.
+  Uint8List _toBytes(Object plaintext) {
+    if (plaintext is Uint8List) return plaintext;
+    if (plaintext is String) {
+      return Uint8List.fromList(utf8.encode(plaintext));
+    }
+    throw FortisConfigException(
+      'Unsupported plaintext type: ${plaintext.runtimeType}. '
+      'Expected String or Uint8List.',
+    );
+  }
 
   /// Resolves the IV/nonce to use.
   ///

@@ -5,9 +5,11 @@ import 'package:pointycastle/export.dart';
 
 import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_encryption_exception.dart';
+import 'aes_auth_payload.dart';
 import 'aes_key.dart';
 import 'aes_mode.dart';
 import 'aes_padding.dart';
+import 'aes_payload.dart';
 
 /// Decrypts AES ciphertext produced by [AesEncrypter].
 ///
@@ -24,12 +26,7 @@ import 'aes_padding.dart';
 /// For authenticated modes (GCM, CCM), the auth tag is verified automatically.
 /// Developers never manage IVs or auth tags manually in the default flow.
 ///
-/// Modes CBC, CTR, CFB, and OFB use the term **IV** internally and in
-/// documentation. Modes GCM and CCM use the term **nonce**. They are
-/// equivalent concepts; the `iv` parameter in [decryptFields] and [decryptMap]
-/// accepts both.
-///
-/// ## Buffer layouts expected by [decrypt]
+/// ## Buffer layouts expected by [decrypt] when passed a [Uint8List]
 ///
 /// - ECB: `[ciphertext]`
 /// - CBC / CTR / CFB / OFB: `[iv (16 bytes) | ciphertext]`
@@ -73,11 +70,89 @@ class AesDecrypter {
        _aad = aad,
        _tagSizeBits = tagSizeBits;
 
-  /// Decrypts [ciphertext] and returns the original plaintext.
+  /// Decrypts [input] and returns the plaintext as raw bytes.
+  ///
+  /// [input] accepts the following types:
+  ///
+  /// - [Uint8List]: the combined buffer in Fortis internal format.
+  ///   Layout: `[ iv | ciphertext ]` or `[ iv | ciphertext | tag ]` depending on mode.
+  ///
+  /// - [String]: a Base64-encoded string of the combined buffer.
+  ///
+  /// - [Map<String, String>]: a map with separate fields, all Base64-encoded.
+  ///   Must contain either `'iv'` or `'nonce'` (not both) and `'data'`.
+  ///   Authenticated modes (GCM, CCM) must also contain `'tag'`.
+  ///   Throws [FortisConfigException] if:
+  ///   - Both `'iv'` and `'nonce'` are present
+  ///   - Neither `'iv'` nor `'nonce'` is present
+  ///   - `'data'` is missing
+  ///   - `'tag'` is missing for authenticated modes
+  ///
+  /// - [AesAuthPayload]: only valid for authenticated modes (GCM, CCM).
+  ///   Throws [FortisConfigException] if used with non-authenticated modes.
+  ///
+  /// - [AesPayload]: only valid for non-authenticated modes (CBC, CTR, CFB, OFB).
+  ///   Throws [FortisConfigException] if used with authenticated modes.
+  ///
+  /// Throws [FortisConfigException] if [input] is not one of the accepted types.
+  Uint8List decrypt(Object input) {
+    if (input is Uint8List) {
+      return _decryptBytes(input);
+    }
+
+    if (input is String) {
+      return _decryptBytes(base64Decode(input));
+    }
+
+    if (input is Map<String, String>) {
+      return _decryptBytes(_fromMap(input));
+    }
+
+    if (input is AesAuthPayload) {
+      final isAuth = _mode == AesMode.gcm || _mode == AesMode.ccm;
+      if (!isAuth) {
+        throw FortisConfigException(
+          'AesAuthPayload is only valid for authenticated modes (GCM, CCM). '
+          'Current mode: ${_mode.name.toUpperCase()}.',
+        );
+      }
+      return _decryptBytes(_fromMap(input.toMap()));
+    }
+
+    if (input is AesPayload) {
+      final isAuth = _mode == AesMode.gcm || _mode == AesMode.ccm;
+      if (isAuth) {
+        throw FortisConfigException(
+          'AesPayload is not valid for authenticated modes (GCM, CCM). '
+          'Current mode: ${_mode.name.toUpperCase()}. '
+          'Use AesAuthPayload instead.',
+        );
+      }
+      return _decryptBytes(_fromMap(input.toMap()));
+    }
+
+    throw FortisConfigException(
+      'Unsupported input type: ${input.runtimeType}. '
+      'Expected Uint8List, String, Map<String, String>, AesAuthPayload, or AesPayload.',
+    );
+  }
+
+  /// Decrypts [input] and returns the plaintext as a UTF-8 decoded [String].
+  ///
+  /// See [decrypt] for accepted [input] types and validation rules.
+  String decryptToString(Object input) {
+    return utf8.decode(decrypt(input));
+  }
+
+  // ──────────────────────────────────────────────
+  // Internal core
+  // ──────────────────────────────────────────────
+
+  /// Decrypts a combined [ciphertext] buffer and returns the original plaintext.
   ///
   /// Throws [FortisEncryptionException] if decryption fails, the auth tag
   /// is invalid, or the AAD does not match what was used during encryption.
-  Uint8List decrypt(Uint8List ciphertext) {
+  Uint8List _decryptBytes(Uint8List ciphertext) {
     try {
       return switch (_mode) {
         AesMode.ecb => _decryptEcb(ciphertext),
@@ -97,130 +172,50 @@ class AesDecrypter {
     }
   }
 
-  /// Decrypts [ciphertext] and returns the result as a UTF-8 string.
-  String decryptToString(Uint8List ciphertext) =>
-      utf8.decode(decrypt(ciphertext));
-
-  /// Decrypts a Base64-encoded [base64Ciphertext] and returns bytes.
-  Uint8List decryptFromBase64(String base64Ciphertext) =>
-      decrypt(base64Decode(base64Ciphertext));
-
-  /// Decrypts a Base64-encoded [base64Ciphertext] and returns a UTF-8 string.
-  String decryptFromBase64ToString(String base64Ciphertext) =>
-      utf8.decode(decryptFromBase64(base64Ciphertext));
-
-  // ──────────────────────────────────────────────
-  // Interoperability methods
-  // ──────────────────────────────────────────────
-
-  /// Decrypts using separate Base64-encoded fields.
+  /// Parses [map] and assembles it into the combined buffer expected by [_decryptBytes].
   ///
-  /// Use when receiving ciphertext from external systems (e.g. .NET, Java,
-  /// OpenSSL) that return the IV/nonce, ciphertext, and auth tag as
-  /// separate fields rather than a combined buffer.
-  ///
-  /// The [iv] parameter accepts both IV values (used by CBC/CTR/CFB/OFB) and
-  /// nonce values (used by GCM/CCM) — they are equivalent. See class-level
-  /// documentation for mode-specific naming conventions.
-  ///
-  /// For non-authenticated modes (ECB, CBC, CTR, CFB, OFB), the [tag]
-  /// parameter is accepted but not included in the decryption buffer.
-  ///
-  /// Throws [FortisConfigException] if any parameter contains invalid Base64.
-  /// Throws [FortisEncryptionException] if decryption or authentication fails.
-  Uint8List decryptFields({
-    required String iv,
-    required String data,
-    required String tag,
-  }) {
-    try {
-      final ivBytes = base64Decode(iv);
-      final dataBytes = base64Decode(data);
-      final tagBytes = base64Decode(tag);
-      return decrypt(_assembleBuffer(iv: ivBytes, data: dataBytes, tag: tagBytes));
-    } on FortisEncryptionException {
-      rethrow;
-    } on FortisConfigException {
-      rethrow;
-    } catch (e) {
-      throw FortisConfigException('Invalid Base64 in decryptFields: $e');
-    }
-  }
-
-  /// Decrypts using separate Base64-encoded fields and returns a UTF-8 string.
-  ///
-  /// Equivalent to calling [decryptFields] and then UTF-8 decoding the result.
-  ///
-  /// See [decryptFields] for parameter documentation.
-  String decryptFieldsToString({
-    required String iv,
-    required String data,
-    required String tag,
-  }) => utf8.decode(decryptFields(iv: iv, data: data, tag: tag));
-
-  /// Decrypts using a [Map] with separate Base64-encoded fields.
-  ///
-  /// Accepted keys:
-  /// - `'iv'` **or** `'nonce'` (exactly one must be present, not both)
-  /// - `'data'` (required)
-  /// - `'tag'` (required)
-  ///
-  /// All values must be Base64-encoded strings.
-  ///
-  /// Example — accepted:
-  /// ```dart
-  /// {'iv':    '...', 'data': '...', 'tag': '...'}
-  /// {'nonce': '...', 'data': '...', 'tag': '...'}
-  /// ```
-  ///
-  /// Example — rejected with [FortisConfigException]:
-  /// ```dart
-  /// {'iv': '...', 'nonce': '...', 'data': '...', 'tag': '...'}  // both present
-  /// {'data': '...', 'tag': '...'}                                 // no iv/nonce
-  /// {'iv': '...', 'tag': '...'}                                   // missing data
-  /// {'iv': '...', 'data': '...'}                                  // missing tag
-  /// ```
-  ///
-  /// Throws [FortisConfigException] if the map structure is invalid or any
-  /// value contains invalid Base64.
-  /// Throws [FortisEncryptionException] if decryption or authentication fails.
-  Uint8List decryptMap(Map<String, String> payload) {
-    final hasIv = payload.containsKey('iv');
-    final hasNonce = payload.containsKey('nonce');
+  /// Validates:
+  /// - Exactly one of `'iv'` or `'nonce'` is present (not both, not neither)
+  /// - `'data'` is present
+  /// - `'tag'` is present for authenticated modes (GCM, CCM)
+  Uint8List _fromMap(Map<String, String> map) {
+    final hasIv = map.containsKey('iv');
+    final hasNonce = map.containsKey('nonce');
 
     if (hasIv && hasNonce) {
-      throw FortisConfigException(
-        "decryptMap: payload must not contain both 'iv' and 'nonce'.",
+      throw const FortisConfigException(
+        "Map must contain either 'iv' or 'nonce', not both.",
       );
     }
     if (!hasIv && !hasNonce) {
-      throw FortisConfigException(
-        "decryptMap: payload must contain 'iv' or 'nonce'.",
+      throw const FortisConfigException(
+        "Map must contain either 'iv' or 'nonce'.",
+      );
+    }
+    if (!map.containsKey('data')) {
+      throw const FortisConfigException(
+        "Map is missing required field 'data'.",
       );
     }
 
-    final data = payload['data'];
-    if (data == null) {
-      throw FortisConfigException("decryptMap: payload must contain 'data'.");
+    final isAuth = _mode == AesMode.gcm || _mode == AesMode.ccm;
+
+    if (isAuth && !map.containsKey('tag')) {
+      throw FortisConfigException(
+        "Map is missing required field 'tag' for ${_mode.name.toUpperCase()} mode.",
+      );
     }
 
-    final tag = payload['tag'];
-    if (tag == null) {
-      throw FortisConfigException("decryptMap: payload must contain 'tag'.");
+    final ivBytes = base64Decode(hasIv ? map['iv']! : map['nonce']!);
+    final dataBytes = base64Decode(map['data']!);
+
+    if (isAuth) {
+      final tagBytes = base64Decode(map['tag']!);
+      return Uint8List.fromList([...ivBytes, ...dataBytes, ...tagBytes]);
     }
 
-    final ivStr = hasIv ? payload['iv']! : payload['nonce']!;
-    return decryptFields(iv: ivStr, data: data, tag: tag);
+    return Uint8List.fromList([...ivBytes, ...dataBytes]);
   }
-
-  /// Decrypts using a [Map] with separate Base64-encoded fields and returns
-  /// a UTF-8 string.
-  ///
-  /// Equivalent to calling [decryptMap] and then UTF-8 decoding the result.
-  ///
-  /// See [decryptMap] for parameter documentation.
-  String decryptMapToString(Map<String, String> payload) =>
-      utf8.decode(decryptMap(payload));
 
   // ──────────────────────────────────────────────
   // Block modes
@@ -370,31 +365,6 @@ class AesDecrypter {
   // ──────────────────────────────────────────────
   // Helpers
   // ──────────────────────────────────────────────
-
-  /// Reassembles the canonical buffer format from separate fields.
-  ///
-  /// Mode-specific layouts:
-  /// - ECB: `[data]` — iv and tag are ignored
-  /// - CBC / CTR / CFB / OFB: `[iv | data]` — tag is ignored
-  /// - GCM / CCM: `[iv | data | tag]`
-  Uint8List _assembleBuffer({
-    required Uint8List iv,
-    required Uint8List data,
-    required Uint8List tag,
-  }) => switch (_mode) {
-    AesMode.ecb => data,
-    AesMode.cbc ||
-    AesMode.ctr ||
-    AesMode.cfb ||
-    AesMode.ofb => Uint8List(iv.length + data.length)
-        ..setAll(0, iv)
-        ..setAll(iv.length, data),
-    AesMode.gcm ||
-    AesMode.ccm => Uint8List(iv.length + data.length + tag.length)
-        ..setAll(0, iv)
-        ..setAll(iv.length, data)
-        ..setAll(iv.length + data.length, tag),
-  };
 
   /// Processes [input] with [cipher] block by block, without padding.
   ///

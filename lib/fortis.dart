@@ -34,6 +34,10 @@ export 'src/algorithms/aes/aes_padding.dart';
 // AES key
 export 'src/algorithms/aes/aes_key.dart';
 
+// AES payload classes
+export 'src/algorithms/aes/aes_auth_payload.dart';
+export 'src/algorithms/aes/aes_payload.dart';
+
 // AES builder + operations
 export 'src/algorithms/aes/aes_builder.dart';
 export 'src/algorithms/aes/aes_encrypter.dart';
