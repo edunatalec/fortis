@@ -17,7 +17,7 @@ High-level cryptography for Dart. Fluent builder API with compile-time safety, s
 
 ## Learn Cryptography
 
-New to cryptography or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Check out our [Cryptography Guide](docs/cryptography/en.md)
+New to cryptography or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Check out our [Cryptography Guide](doc/cryptography/en.md)
 
 ## Quick Start
 
