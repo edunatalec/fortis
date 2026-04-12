@@ -19,21 +19,6 @@ High-level cryptography for Dart. Fluent builder API with compile-time safety, s
 
 New to cryptography or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Check out our [Cryptography Guide](docs/cryptography/en.md)
 
-## Installation
-
-Add Fortis to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  fortis: ^0.0.1
-```
-
-Then run:
-
-```bash
-dart pub get
-```
-
 ## Quick Start
 
 ```dart
