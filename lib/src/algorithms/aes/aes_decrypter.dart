@@ -15,13 +15,26 @@ import 'aes_padding.dart';
 /// ```dart
 /// final decrypter = Fortis.aes()
 ///     .mode(AesMode.gcm)
-///     .key(myKey)
-///     .decrypter();
+///     .decrypter(myKey);
 /// ```
 ///
-/// The IV/nonce is extracted automatically from the ciphertext prefix.
+/// ## IV / nonce management
+///
+/// The IV or nonce is extracted automatically from the ciphertext prefix.
 /// For authenticated modes (GCM, CCM), the auth tag is verified automatically.
-/// Developers never manage IVs or auth tags manually.
+/// Developers never manage IVs or auth tags manually in the default flow.
+///
+/// Modes CBC, CTR, CFB, and OFB use the term **IV** internally and in
+/// documentation. Modes GCM and CCM use the term **nonce**. They are
+/// equivalent concepts; the `iv` parameter in [decryptFields] and [decryptMap]
+/// accepts both.
+///
+/// ## Buffer layouts expected by [decrypt]
+///
+/// - ECB: `[ciphertext]`
+/// - CBC / CTR / CFB / OFB: `[iv (16 bytes) | ciphertext]`
+/// - GCM: `[nonce (12 bytes) | ciphertext | tag (16 bytes)]`
+/// - CCM: `[nonce (11 bytes) | ciphertext | tag (16 bytes)]`
 class AesDecrypter {
   final AesMode _mode;
   final FortisAesKey _key;
@@ -95,6 +108,119 @@ class AesDecrypter {
   /// Decrypts a Base64-encoded [base64Ciphertext] and returns a UTF-8 string.
   String decryptFromBase64ToString(String base64Ciphertext) =>
       utf8.decode(decryptFromBase64(base64Ciphertext));
+
+  // ──────────────────────────────────────────────
+  // Interoperability methods
+  // ──────────────────────────────────────────────
+
+  /// Decrypts using separate Base64-encoded fields.
+  ///
+  /// Use when receiving ciphertext from external systems (e.g. .NET, Java,
+  /// OpenSSL) that return the IV/nonce, ciphertext, and auth tag as
+  /// separate fields rather than a combined buffer.
+  ///
+  /// The [iv] parameter accepts both IV values (used by CBC/CTR/CFB/OFB) and
+  /// nonce values (used by GCM/CCM) — they are equivalent. See class-level
+  /// documentation for mode-specific naming conventions.
+  ///
+  /// For non-authenticated modes (ECB, CBC, CTR, CFB, OFB), the [tag]
+  /// parameter is accepted but not included in the decryption buffer.
+  ///
+  /// Throws [FortisConfigException] if any parameter contains invalid Base64.
+  /// Throws [FortisEncryptionException] if decryption or authentication fails.
+  Uint8List decryptFields({
+    required String iv,
+    required String data,
+    required String tag,
+  }) {
+    try {
+      final ivBytes = base64Decode(iv);
+      final dataBytes = base64Decode(data);
+      final tagBytes = base64Decode(tag);
+      return decrypt(_assembleBuffer(iv: ivBytes, data: dataBytes, tag: tagBytes));
+    } on FortisEncryptionException {
+      rethrow;
+    } on FortisConfigException {
+      rethrow;
+    } catch (e) {
+      throw FortisConfigException('Invalid Base64 in decryptFields: $e');
+    }
+  }
+
+  /// Decrypts using separate Base64-encoded fields and returns a UTF-8 string.
+  ///
+  /// Equivalent to calling [decryptFields] and then UTF-8 decoding the result.
+  ///
+  /// See [decryptFields] for parameter documentation.
+  String decryptFieldsToString({
+    required String iv,
+    required String data,
+    required String tag,
+  }) => utf8.decode(decryptFields(iv: iv, data: data, tag: tag));
+
+  /// Decrypts using a [Map] with separate Base64-encoded fields.
+  ///
+  /// Accepted keys:
+  /// - `'iv'` **or** `'nonce'` (exactly one must be present, not both)
+  /// - `'data'` (required)
+  /// - `'tag'` (required)
+  ///
+  /// All values must be Base64-encoded strings.
+  ///
+  /// Example — accepted:
+  /// ```dart
+  /// {'iv':    '...', 'data': '...', 'tag': '...'}
+  /// {'nonce': '...', 'data': '...', 'tag': '...'}
+  /// ```
+  ///
+  /// Example — rejected with [FortisConfigException]:
+  /// ```dart
+  /// {'iv': '...', 'nonce': '...', 'data': '...', 'tag': '...'}  // both present
+  /// {'data': '...', 'tag': '...'}                                 // no iv/nonce
+  /// {'iv': '...', 'tag': '...'}                                   // missing data
+  /// {'iv': '...', 'data': '...'}                                  // missing tag
+  /// ```
+  ///
+  /// Throws [FortisConfigException] if the map structure is invalid or any
+  /// value contains invalid Base64.
+  /// Throws [FortisEncryptionException] if decryption or authentication fails.
+  Uint8List decryptMap(Map<String, String> payload) {
+    final hasIv = payload.containsKey('iv');
+    final hasNonce = payload.containsKey('nonce');
+
+    if (hasIv && hasNonce) {
+      throw FortisConfigException(
+        "decryptMap: payload must not contain both 'iv' and 'nonce'.",
+      );
+    }
+    if (!hasIv && !hasNonce) {
+      throw FortisConfigException(
+        "decryptMap: payload must contain 'iv' or 'nonce'.",
+      );
+    }
+
+    final data = payload['data'];
+    if (data == null) {
+      throw FortisConfigException("decryptMap: payload must contain 'data'.");
+    }
+
+    final tag = payload['tag'];
+    if (tag == null) {
+      throw FortisConfigException("decryptMap: payload must contain 'tag'.");
+    }
+
+    final ivStr = hasIv ? payload['iv']! : payload['nonce']!;
+    return decryptFields(iv: ivStr, data: data, tag: tag);
+  }
+
+  /// Decrypts using a [Map] with separate Base64-encoded fields and returns
+  /// a UTF-8 string.
+  ///
+  /// Equivalent to calling [decryptMap] and then UTF-8 decoding the result.
+  ///
+  /// See [decryptMap] for parameter documentation.
+  String decryptMapToString(Map<String, String> payload) =>
+      utf8.decode(decryptMap(payload));
 
   // ──────────────────────────────────────────────
   // Block modes
@@ -213,14 +339,14 @@ class AesDecrypter {
   }
 
   Uint8List _decryptCcm(Uint8List ciphertext) {
-    if (ciphertext.length < 12) {
+    if (ciphertext.length < 11) {
       throw FortisEncryptionException(
         'Ciphertext too short for CCM mode '
-        '(expected at least 12 bytes for nonce, got ${ciphertext.length}).',
+        '(expected at least 11 bytes for nonce, got ${ciphertext.length}).',
       );
     }
-    final nonce = ciphertext.sublist(0, 12); // 12-byte nonce per RFC 3610
-    final body = ciphertext.sublist(12);
+    final nonce = ciphertext.sublist(0, 11); // RFC 3610: 11-byte nonce
+    final body = ciphertext.sublist(11);
     final cipher = CCMBlockCipher(AESEngine());
     cipher.init(
       false,
@@ -245,11 +371,36 @@ class AesDecrypter {
   // Helpers
   // ──────────────────────────────────────────────
 
-  /// Processa [input] com [cipher] bloco a bloco, sem padding.
+  /// Reassembles the canonical buffer format from separate fields.
   ///
-  /// Blocos completos são processados diretamente. O último bloco parcial
-  /// é preenchido com zeros, processado, e apenas os bytes necessários são
-  /// copiados — garantindo que a saída tenha o mesmo tamanho da entrada.
+  /// Mode-specific layouts:
+  /// - ECB: `[data]` — iv and tag are ignored
+  /// - CBC / CTR / CFB / OFB: `[iv | data]` — tag is ignored
+  /// - GCM / CCM: `[iv | data | tag]`
+  Uint8List _assembleBuffer({
+    required Uint8List iv,
+    required Uint8List data,
+    required Uint8List tag,
+  }) => switch (_mode) {
+    AesMode.ecb => data,
+    AesMode.cbc ||
+    AesMode.ctr ||
+    AesMode.cfb ||
+    AesMode.ofb => Uint8List(iv.length + data.length)
+        ..setAll(0, iv)
+        ..setAll(iv.length, data),
+    AesMode.gcm ||
+    AesMode.ccm => Uint8List(iv.length + data.length + tag.length)
+        ..setAll(0, iv)
+        ..setAll(iv.length, data)
+        ..setAll(iv.length + data.length, tag),
+  };
+
+  /// Processes [input] with [cipher] block by block, without padding.
+  ///
+  /// Full blocks are processed directly. The last partial block is
+  /// zero-padded, processed, and only the necessary bytes are copied —
+  /// ensuring the output has the same size as the input.
   Uint8List _processStreamBlockCipher(BlockCipher cipher, Uint8List input) {
     const blockSize = 16;
     final output = Uint8List(input.length);

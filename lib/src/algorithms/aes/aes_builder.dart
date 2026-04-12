@@ -39,16 +39,14 @@ class AesBuilder {
   /// - [AesAuthModeBuilder] for [AesMode.gcm] and [AesMode.ccm], which
   ///   exposes [AesAuthModeBuilder.aad] and [AesAuthModeBuilder.tagSize].
   ///
-  /// Call `.key(myKey)` on the returned builder to get a ready builder, then
-  /// `.encrypter()` or `.decrypter()`.
+  /// Call `.encrypter(myKey)` or `.decrypter(myKey)` on the returned builder
+  /// to build the cipher object.
   AesModeBuilder mode(AesMode mode) => switch (mode) {
-    AesMode.ecb ||
-    AesMode.cbc => AesBlockModeBuilder._(mode: mode, keySize: _keySize),
+    AesMode.ecb || AesMode.cbc => AesBlockModeBuilder._(mode: mode),
     AesMode.ctr ||
     AesMode.cfb ||
-    AesMode.ofb => AesStreamModeBuilder._(mode: mode, keySize: _keySize),
-    AesMode.gcm ||
-    AesMode.ccm => AesAuthModeBuilder._(mode: mode, keySize: _keySize),
+    AesMode.ofb => AesStreamModeBuilder._(mode: mode),
+    AesMode.gcm || AesMode.ccm => AesAuthModeBuilder._(mode: mode),
   };
 }
 
@@ -58,70 +56,93 @@ class AesBuilder {
 
 /// Abstract base for mode-specific AES builders.
 ///
-/// Call [key] to advance to a ready builder, then call
-/// [AesReadyBuilder.encrypter] or [AesReadyBuilder.decrypter].
+/// Call [encrypter] or [decrypter] with a [FortisAesKey] to build the
+/// cipher object.
 sealed class AesModeBuilder {
   final AesMode _mode;
-  final int _keySize;
 
-  AesModeBuilder._({required AesMode mode, required int keySize})
-    : _mode = mode,
-      _keySize = keySize;
+  AesModeBuilder._({required AesMode mode}) : _mode = mode;
 
-  /// Sets the AES key. Returns a [AesReadyBuilder] that can produce an
-  /// [AesEncrypter] or [AesDecrypter].
-  AesReadyBuilder key(FortisAesKey key);
+  /// Builds an [AesEncrypter] for this configuration using [key].
+  AesEncrypter encrypter(FortisAesKey key);
+
+  /// Builds an [AesDecrypter] for this configuration using [key].
+  AesDecrypter decrypter(FortisAesKey key);
 }
 
 /// Builder for block modes (ECB, CBC). Exposes [padding].
 ///
 /// Obtain via [AesBuilder.mode] with [AesMode.ecb] or [AesMode.cbc].
+///
+/// Example:
+/// ```dart
+/// final encrypter = Fortis.aes()
+///     .mode(AesMode.cbc)
+///     .padding(AesPadding.pkcs7)
+///     .encrypter(myKey);
+/// ```
 final class AesBlockModeBuilder extends AesModeBuilder {
   final AesPadding _padding;
 
   AesBlockModeBuilder._({
     required super.mode,
-    required super.keySize,
     AesPadding padding = AesPadding.pkcs7,
   }) : _padding = padding,
        super._();
 
   /// Sets the padding scheme. Defaults to [AesPadding.pkcs7].
   AesBlockModeBuilder padding(AesPadding padding) =>
-      AesBlockModeBuilder._(mode: _mode, keySize: _keySize, padding: padding);
+      AesBlockModeBuilder._(mode: _mode, padding: padding);
 
   @override
-  AesBlockReadyBuilder key(FortisAesKey key) => AesBlockReadyBuilder._(
-    mode: _mode,
-    keySize: _keySize,
-    padding: _padding,
-    key: key,
-  );
+  AesEncrypter encrypter(FortisAesKey key) =>
+      AesEncrypter.block(mode: _mode, key: key, padding: _padding);
+
+  @override
+  AesDecrypter decrypter(FortisAesKey key) =>
+      AesDecrypter.block(mode: _mode, key: key, padding: _padding);
 }
 
 /// Builder for stream modes (CTR, CFB, OFB). No user-configurable padding.
 ///
 /// Obtain via [AesBuilder.mode] with [AesMode.ctr], [AesMode.cfb], or
 /// [AesMode.ofb].
+///
+/// Example:
+/// ```dart
+/// final encrypter = Fortis.aes()
+///     .mode(AesMode.ctr)
+///     .encrypter(myKey);
+/// ```
 final class AesStreamModeBuilder extends AesModeBuilder {
-  AesStreamModeBuilder._({required super.mode, required super.keySize})
-    : super._();
+  AesStreamModeBuilder._({required super.mode}) : super._();
 
   @override
-  AesStreamReadyBuilder key(FortisAesKey key) =>
-      AesStreamReadyBuilder._(mode: _mode, keySize: _keySize, key: key);
+  AesEncrypter encrypter(FortisAesKey key) =>
+      AesEncrypter.stream(mode: _mode, key: key);
+
+  @override
+  AesDecrypter decrypter(FortisAesKey key) =>
+      AesDecrypter.stream(mode: _mode, key: key);
 }
 
 /// Builder for authenticated modes (GCM, CCM). Exposes [aad] and [tagSize].
 ///
 /// Obtain via [AesBuilder.mode] with [AesMode.gcm] or [AesMode.ccm].
+///
+/// Example:
+/// ```dart
+/// final encrypter = Fortis.aes()
+///     .mode(AesMode.gcm)
+///     .aad(Uint8List.fromList(utf8.encode('user-id-123')))
+///     .encrypter(myKey);
+/// ```
 final class AesAuthModeBuilder extends AesModeBuilder {
   final Uint8List? _aad;
   final int _tagSizeBits;
 
   AesAuthModeBuilder._({
     required super.mode,
-    required super.keySize,
     Uint8List? aad,
     int tagSizeBits = 128,
   }) : _aad = aad,
@@ -135,7 +156,6 @@ final class AesAuthModeBuilder extends AesModeBuilder {
   /// [FortisEncryptionException] will be thrown.
   AesAuthModeBuilder aad(Uint8List aad) => AesAuthModeBuilder._(
     mode: _mode,
-    keySize: _keySize,
     aad: aad,
     tagSizeBits: _tagSizeBits,
   );
@@ -143,116 +163,22 @@ final class AesAuthModeBuilder extends AesModeBuilder {
   /// Sets the authentication tag size in bits. Defaults to 128.
   AesAuthModeBuilder tagSize(int bits) => AesAuthModeBuilder._(
     mode: _mode,
-    keySize: _keySize,
     aad: _aad,
     tagSizeBits: bits,
   );
 
   @override
-  AesAuthReadyBuilder key(FortisAesKey key) => AesAuthReadyBuilder._(
+  AesEncrypter encrypter(FortisAesKey key) => AesEncrypter.auth(
     mode: _mode,
-    keySize: _keySize,
-    aad: _aad,
-    tagSizeBits: _tagSizeBits,
     key: key,
-  );
-}
-
-// ──────────────────────────────────────────────
-// Ready builder hierarchy (mode + key are both set)
-// ──────────────────────────────────────────────
-
-/// Abstract base for ready AES builders (mode + key configured).
-///
-/// Call [encrypter] or [decrypter] to build the cipher object.
-sealed class AesReadyBuilder {
-  final AesMode _mode;
-  final FortisAesKey _key;
-
-  AesReadyBuilder._({required AesMode mode, required FortisAesKey key})
-    : _mode = mode,
-      _key = key;
-
-  /// Builds an [AesEncrypter] for this configuration.
-  AesEncrypter encrypter();
-
-  /// Builds an [AesDecrypter] for this configuration.
-  AesDecrypter decrypter();
-}
-
-/// Ready builder for block modes (ECB, CBC).
-final class AesBlockReadyBuilder extends AesReadyBuilder {
-  final AesPadding _padding;
-  // ignore: unused_field
-  final int _keySize;
-
-  AesBlockReadyBuilder._({
-    required super.mode,
-    required int keySize,
-    required super.key,
-    required AesPadding padding,
-  }) : _padding = padding,
-       _keySize = keySize,
-       super._();
-
-  @override
-  AesEncrypter encrypter() =>
-      AesEncrypter.block(mode: _mode, key: _key, padding: _padding);
-
-  @override
-  AesDecrypter decrypter() =>
-      AesDecrypter.block(mode: _mode, key: _key, padding: _padding);
-}
-
-/// Ready builder for stream modes (CTR, CFB, OFB).
-final class AesStreamReadyBuilder extends AesReadyBuilder {
-  // ignore: unused_field
-  final int _keySize;
-
-  AesStreamReadyBuilder._({
-    required super.mode,
-    required int keySize,
-    required super.key,
-  }) : _keySize = keySize,
-       super._();
-
-  @override
-  AesEncrypter encrypter() => AesEncrypter.stream(mode: _mode, key: _key);
-
-  @override
-  AesDecrypter decrypter() => AesDecrypter.stream(mode: _mode, key: _key);
-}
-
-/// Ready builder for authenticated modes (GCM, CCM).
-final class AesAuthReadyBuilder extends AesReadyBuilder {
-  final Uint8List? _aad;
-  final int _tagSizeBits;
-  // ignore: unused_field
-  final int _keySize;
-
-  AesAuthReadyBuilder._({
-    required super.mode,
-    required int keySize,
-    required super.key,
-    Uint8List? aad,
-    int tagSizeBits = 128,
-  }) : _aad = aad,
-       _tagSizeBits = tagSizeBits,
-       _keySize = keySize,
-       super._();
-
-  @override
-  AesEncrypter encrypter() => AesEncrypter.auth(
-    mode: _mode,
-    key: _key,
     aad: _aad,
     tagSizeBits: _tagSizeBits,
   );
 
   @override
-  AesDecrypter decrypter() => AesDecrypter.auth(
+  AesDecrypter decrypter(FortisAesKey key) => AesDecrypter.auth(
     mode: _mode,
-    key: _key,
+    key: key,
     aad: _aad,
     tagSizeBits: _tagSizeBits,
   );
