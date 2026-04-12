@@ -1,6 +1,6 @@
 name: fortis
 description: High-level cryptography for Dart. Fluent builder API with compile-time safety, sane defaults, and seamless cross-platform interoperability.
-version: 0.0.1
+version: 0.1.0
 homepage: https://github.com/edunatalec/fortis
 repository: https://github.com/edunatalec/fortis
 issue_tracker: https://github.com/edunatalec/fortis/issues
