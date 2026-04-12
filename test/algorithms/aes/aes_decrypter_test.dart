@@ -13,13 +13,10 @@ void main() {
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
-  AesEncrypter enc(AesMode mode) => Fortis.aes().mode(mode).encrypter(key);
-  AesDecrypter dec(AesMode mode) => Fortis.aes().mode(mode).decrypter(key);
+  AesCipher cipher(AesMode mode) => Fortis.aes().mode(mode).cipher(key);
 
-  AesEncrypter encWithAad(AesMode mode, Uint8List aad) =>
-      (Fortis.aes().mode(mode) as AesAuthModeBuilder).aad(aad).encrypter(key);
-  AesDecrypter decWithAad(AesMode mode, Uint8List aad) =>
-      (Fortis.aes().mode(mode) as AesAuthModeBuilder).aad(aad).decrypter(key);
+  AesCipher cipherWithAad(AesMode mode, Uint8List aad) =>
+      (Fortis.aes().mode(mode) as AesAuthModeBuilder).aad(aad).cipher(key);
 
   const plaintext = 'hello fortis';
   final plaintextBytes = Uint8List.fromList(utf8.encode(plaintext));
@@ -28,13 +25,15 @@ void main() {
 
   group('decrypt — Uint8List input', () {
     test('recovers original plaintext from combined Uint8List', () {
-      final cipher = enc(AesMode.gcm).encrypt(plaintextBytes);
-      expect(dec(AesMode.gcm).decrypt(cipher), equals(plaintextBytes));
+      final c = cipher(AesMode.gcm);
+      final ciphertext = c.encrypt(plaintextBytes);
+      expect(c.decrypt(ciphertext), equals(plaintextBytes));
     });
 
     test('end-to-end: encrypt → decrypt → equals original', () {
-      final cipher = enc(AesMode.gcm).encrypt(plaintext);
-      expect(dec(AesMode.gcm).decrypt(cipher), equals(plaintextBytes));
+      final c = cipher(AesMode.gcm);
+      final ciphertext = c.encrypt(plaintext);
+      expect(c.decrypt(ciphertext), equals(plaintextBytes));
     });
   });
 
@@ -42,13 +41,15 @@ void main() {
 
   group('decrypt — String input (Base64)', () {
     test('recovers original plaintext from Base64 string', () {
-      final cipher = enc(AesMode.gcm).encryptToString(plaintext);
-      expect(dec(AesMode.gcm).decrypt(cipher), equals(plaintextBytes));
+      final c = cipher(AesMode.gcm);
+      final ciphertext = c.encryptToString(plaintext);
+      expect(c.decrypt(ciphertext), equals(plaintextBytes));
     });
 
     test('end-to-end: encryptToString → decrypt → equals original', () {
-      final cipher = enc(AesMode.cbc).encryptToString(plaintext);
-      expect(dec(AesMode.cbc).decrypt(cipher), equals(plaintextBytes));
+      final c = cipher(AesMode.cbc);
+      final ciphertext = c.encryptToString(plaintext);
+      expect(c.decrypt(ciphertext), equals(plaintextBytes));
     });
   });
 
@@ -56,23 +57,23 @@ void main() {
 
   group('decrypt — Map input', () {
     test("recovers plaintext with key 'iv'", () {
-      final payload =
-          enc(AesMode.cbc).encryptToPayload(plaintext) as AesPayload;
-      expect(dec(AesMode.cbc).decrypt(payload.toMap()), equals(plaintextBytes));
+      final c = cipher(AesMode.cbc);
+      final payload = c.encryptToPayload(plaintext) as AesPayload;
+      expect(c.decrypt(payload.toMap()), equals(plaintextBytes));
     });
 
     test("recovers plaintext with key 'nonce'", () {
-      final payload =
-          enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
+      final c = cipher(AesMode.gcm);
+      final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
       expect(
-        dec(AesMode.gcm).decrypt(payload.toMap(ivKey: 'nonce')),
+        c.decrypt(payload.toMap(ivKey: 'nonce')),
         equals(plaintextBytes),
       );
     });
 
     test("throws FortisConfigException when both 'iv' and 'nonce' present", () {
       expect(
-        () => dec(
+        () => cipher(
           AesMode.gcm,
         ).decrypt({'iv': 'a', 'nonce': 'b', 'data': 'c', 'tag': 'd'}),
         throwsA(isA<FortisConfigException>()),
@@ -83,7 +84,7 @@ void main() {
       "throws FortisConfigException when neither 'iv' nor 'nonce' present",
       () {
         expect(
-          () => dec(AesMode.gcm).decrypt({'data': 'c', 'tag': 'd'}),
+          () => cipher(AesMode.gcm).decrypt({'data': 'c', 'tag': 'd'}),
           throwsA(isA<FortisConfigException>()),
         );
       },
@@ -91,21 +92,21 @@ void main() {
 
     test("throws FortisConfigException when 'data' missing", () {
       expect(
-        () => dec(AesMode.gcm).decrypt({'iv': 'a', 'tag': 'd'}),
+        () => cipher(AesMode.gcm).decrypt({'iv': 'a', 'tag': 'd'}),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
     test("throws FortisConfigException when 'tag' missing for GCM", () {
       expect(
-        () => dec(AesMode.gcm).decrypt({'iv': 'a', 'data': 'c'}),
+        () => cipher(AesMode.gcm).decrypt({'iv': 'a', 'data': 'c'}),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
     test("throws FortisConfigException when 'tag' missing for CCM", () {
       expect(
-        () => dec(AesMode.ccm).decrypt({'iv': 'a', 'data': 'c'}),
+        () => cipher(AesMode.ccm).decrypt({'iv': 'a', 'data': 'c'}),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -113,10 +114,10 @@ void main() {
     test(
       "end-to-end: encryptToPayload → toMap() → decrypt → equals original",
       () {
-        final payload =
-            enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
+        final c = cipher(AesMode.gcm);
+        final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
         expect(
-          dec(AesMode.gcm).decrypt(payload.toMap()),
+          c.decrypt(payload.toMap()),
           equals(plaintextBytes),
         );
       },
@@ -125,10 +126,10 @@ void main() {
     test(
       "end-to-end: encryptToPayload → toMap(ivKey: 'nonce') → decrypt → equals original",
       () {
-        final payload =
-            enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
+        final c = cipher(AesMode.gcm);
+        final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
         expect(
-          dec(AesMode.gcm).decrypt(payload.toMap(ivKey: 'nonce')),
+          c.decrypt(payload.toMap(ivKey: 'nonce')),
           equals(plaintextBytes),
         );
       },
@@ -139,21 +140,21 @@ void main() {
 
   group('decrypt — AesAuthPayload input', () {
     test('recovers plaintext from AesAuthPayload in GCM mode', () {
-      final payload =
-          enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
-      expect(dec(AesMode.gcm).decrypt(payload), equals(plaintextBytes));
+      final c = cipher(AesMode.gcm);
+      final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
+      expect(c.decrypt(payload), equals(plaintextBytes));
     });
 
     test('recovers plaintext from AesAuthPayload in CCM mode', () {
-      final payload =
-          enc(AesMode.ccm).encryptToPayload(plaintext) as AesAuthPayload;
-      expect(dec(AesMode.ccm).decrypt(payload), equals(plaintextBytes));
+      final c = cipher(AesMode.ccm);
+      final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
+      expect(c.decrypt(payload), equals(plaintextBytes));
     });
 
     test('throws FortisConfigException when used with CBC mode', () {
       final payload = AesAuthPayload(iv: 'a', data: 'b', tag: 'c');
       expect(
-        () => dec(AesMode.cbc).decrypt(payload),
+        () => cipher(AesMode.cbc).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -161,7 +162,7 @@ void main() {
     test('throws FortisConfigException when used with CTR mode', () {
       final payload = AesAuthPayload(iv: 'a', data: 'b', tag: 'c');
       expect(
-        () => dec(AesMode.ctr).decrypt(payload),
+        () => cipher(AesMode.ctr).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -169,9 +170,9 @@ void main() {
     test(
       'end-to-end: encryptToPayload → decrypt(AesAuthPayload) → equals original',
       () {
-        final payload =
-            enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
-        expect(dec(AesMode.gcm).decrypt(payload), equals(plaintextBytes));
+        final c = cipher(AesMode.gcm);
+        final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
+        expect(c.decrypt(payload), equals(plaintextBytes));
       },
     );
   });
@@ -183,8 +184,9 @@ void main() {
       test(
         'recovers plaintext from AesPayload in ${mode.name.toUpperCase()} mode',
         () {
-          final payload = enc(mode).encryptToPayload(plaintext) as AesPayload;
-          expect(dec(mode).decrypt(payload), equals(plaintextBytes));
+          final c = cipher(mode);
+          final payload = c.encryptToPayload(plaintext) as AesPayload;
+          expect(c.decrypt(payload), equals(plaintextBytes));
         },
       );
     }
@@ -192,7 +194,7 @@ void main() {
     test('throws FortisConfigException when used with GCM mode', () {
       final payload = AesPayload(iv: 'a', data: 'b');
       expect(
-        () => dec(AesMode.gcm).decrypt(payload),
+        () => cipher(AesMode.gcm).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -200,7 +202,7 @@ void main() {
     test('throws FortisConfigException when used with CCM mode', () {
       final payload = AesPayload(iv: 'a', data: 'b');
       expect(
-        () => dec(AesMode.ccm).decrypt(payload),
+        () => cipher(AesMode.ccm).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -208,9 +210,9 @@ void main() {
     test(
       'end-to-end: encryptToPayload → decrypt(AesPayload) → equals original',
       () {
-        final payload =
-            enc(AesMode.cbc).encryptToPayload(plaintext) as AesPayload;
-        expect(dec(AesMode.cbc).decrypt(payload), equals(plaintextBytes));
+        final c = cipher(AesMode.cbc);
+        final payload = c.encryptToPayload(plaintext) as AesPayload;
+        expect(c.decrypt(payload), equals(plaintextBytes));
       },
     );
   });
@@ -220,7 +222,7 @@ void main() {
   group('decrypt — unsupported type', () {
     test('throws FortisConfigException for unsupported input type (int)', () {
       expect(
-        () => dec(AesMode.gcm).decrypt(42),
+        () => cipher(AesMode.gcm).decrypt(42),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -230,49 +232,49 @@ void main() {
 
   group('decryptToString', () {
     test('recovers original UTF-8 string from Uint8List', () {
+      final c = cipher(AesMode.gcm);
       expect(
-        dec(AesMode.gcm).decryptToString(enc(AesMode.gcm).encrypt(plaintext)),
+        c.decryptToString(c.encrypt(plaintext)),
         equals(plaintext),
       );
     });
 
     test('recovers original UTF-8 string from Base64 String', () {
+      final c = cipher(AesMode.gcm);
       expect(
-        dec(
-          AesMode.gcm,
-        ).decryptToString(enc(AesMode.gcm).encryptToString(plaintext)),
+        c.decryptToString(c.encryptToString(plaintext)),
         equals(plaintext),
       );
     });
 
     test('recovers original UTF-8 string from Map<String, String>', () {
-      final payload =
-          enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
+      final c = cipher(AesMode.gcm);
+      final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
       expect(
-        dec(AesMode.gcm).decryptToString(payload.toMap()),
+        c.decryptToString(payload.toMap()),
         equals(plaintext),
       );
     });
 
     test('recovers original UTF-8 string from AesAuthPayload', () {
-      final payload =
-          enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
-      expect(dec(AesMode.gcm).decryptToString(payload), equals(plaintext));
+      final c = cipher(AesMode.gcm);
+      final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
+      expect(c.decryptToString(payload), equals(plaintext));
     });
 
     test('recovers original UTF-8 string from AesPayload', () {
-      final payload =
-          enc(AesMode.cbc).encryptToPayload(plaintext) as AesPayload;
-      expect(dec(AesMode.cbc).decryptToString(payload), equals(plaintext));
+      final c = cipher(AesMode.cbc);
+      final payload = c.encryptToPayload(plaintext) as AesPayload;
+      expect(c.decryptToString(payload), equals(plaintext));
     });
 
     test(
       "end-to-end: encryptToPayload → toMap() → decryptToString → equals original string",
       () {
-        final payload =
-            enc(AesMode.gcm).encryptToPayload(plaintext) as AesAuthPayload;
+        final c = cipher(AesMode.gcm);
+        final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
         expect(
-          dec(AesMode.gcm).decryptToString(payload.toMap()),
+          c.decryptToString(payload.toMap()),
           equals(plaintext),
         );
       },
@@ -299,10 +301,9 @@ void main() {
           'round-trip: ${mode.name.toUpperCase()} + $size-bit key',
           () async {
             final k = await Fortis.aes().keySize(size).generateKey();
-            final encrypter = Fortis.aes().mode(mode).encrypter(k);
-            final decrypter = Fortis.aes().mode(mode).decrypter(k);
-            final cipher = encrypter.encrypt(plaintext);
-            expect(decrypter.decryptToString(cipher), equals(plaintext));
+            final c = Fortis.aes().mode(mode).cipher(k);
+            final ciphertext = c.encrypt(plaintext);
+            expect(c.decryptToString(ciphertext), equals(plaintext));
           },
         );
       }
@@ -318,9 +319,10 @@ void main() {
       test(
         '${mode.name.toUpperCase()} AAD matching: encrypt with AAD → decrypt with same AAD → succeeds',
         () {
-          final cipher = encWithAad(mode, aad).encrypt(plaintext);
+          final c = cipherWithAad(mode, aad);
+          final ciphertext = c.encrypt(plaintext);
           expect(
-            decWithAad(mode, aad).decryptToString(cipher),
+            c.decryptToString(ciphertext),
             equals(plaintext),
           );
         },
@@ -329,10 +331,11 @@ void main() {
       test(
         '${mode.name.toUpperCase()} AAD mismatch → throws FortisEncryptionException',
         () {
-          final cipher = encWithAad(mode, aad).encrypt(plaintext);
+          final c = cipherWithAad(mode, aad);
+          final ciphertext = c.encrypt(plaintext);
           final wrongAad = Uint8List.fromList(utf8.encode('wrong-aad'));
           expect(
-            () => decWithAad(mode, wrongAad).decrypt(cipher),
+            () => cipherWithAad(mode, wrongAad).decrypt(ciphertext),
             throwsA(isA<FortisEncryptionException>()),
           );
         },
@@ -341,11 +344,12 @@ void main() {
       test(
         '${mode.name.toUpperCase()} auth tag tampering → throws FortisEncryptionException',
         () {
-          final cipher = enc(mode).encrypt(plaintext);
-          final tampered = Uint8List.fromList(cipher);
+          final c = cipher(mode);
+          final ciphertext = c.encrypt(plaintext);
+          final tampered = Uint8List.fromList(ciphertext);
           tampered[tampered.length - 1] ^= 0xFF;
           expect(
-            () => dec(mode).decrypt(tampered),
+            () => c.decrypt(tampered),
             throwsA(isA<FortisEncryptionException>()),
           );
         },
@@ -357,17 +361,35 @@ void main() {
 
   group('interoperability', () {
     test('interop: decrypt(Map) recovers .NET-style separated fields', () {
-      final ciphertext = enc(AesMode.gcm).encrypt(plaintext);
+      final c = cipher(AesMode.gcm);
+      final ciphertext = c.encrypt(plaintext);
       final iv = base64Encode(ciphertext.sublist(0, 12));
       final tag = base64Encode(ciphertext.sublist(ciphertext.length - 16));
-      final data = base64Encode(ciphertext.sublist(12, ciphertext.length - 16));
+      final data = base64Encode(
+        ciphertext.sublist(12, ciphertext.length - 16),
+      );
 
       expect(
-        dec(
-          AesMode.gcm,
-        ).decryptToString({'nonce': iv, 'data': data, 'tag': tag}),
+        c.decryptToString({'nonce': iv, 'data': data, 'tag': tag}),
         equals(plaintext),
       );
+    });
+  });
+
+  // ── Same instance and cross-cipher tests ──────────────────────────────────
+
+  group('AesCipher — symmetric usage', () {
+    test('same instance encrypts and decrypts', () {
+      final c = Fortis.aes().mode(AesMode.gcm).cipher(key);
+      final ciphertext = c.encrypt('hello fortis');
+      expect(c.decryptToString(ciphertext), equals('hello fortis'));
+    });
+
+    test('two ciphers with same key produce compatible output', () {
+      final cipher1 = Fortis.aes().mode(AesMode.gcm).cipher(key);
+      final cipher2 = Fortis.aes().mode(AesMode.gcm).cipher(key);
+      final ciphertext = cipher1.encrypt('hello fortis');
+      expect(cipher2.decryptToString(ciphertext), equals('hello fortis'));
     });
   });
 }

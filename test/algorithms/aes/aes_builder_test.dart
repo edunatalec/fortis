@@ -92,35 +92,33 @@ void main() {
   // ── nonceSize() — GCM round-trip ─────────────────────────────────────────
 
   group('nonceSize() — GCM round-trip', () {
-    AesEncrypter encGcm(int size) =>
+    AesCipher gcmCipher(int size) =>
         (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
             .nonceSize(size)
-            .encrypter(key);
-
-    AesDecrypter decGcm(int size) =>
-        (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
-            .nonceSize(size)
-            .decrypter(key);
+            .cipher(key);
 
     test('nonceSize(12) encrypt → decrypt recovers plaintext', () {
-      final cipher = encGcm(12).encrypt('hello fortis');
-      expect(decGcm(12).decryptToString(cipher), equals('hello fortis'));
+      final c = gcmCipher(12);
+      final ciphertext = c.encrypt('hello fortis');
+      expect(c.decryptToString(ciphertext), equals('hello fortis'));
     });
 
     test('explicit 12-byte iv → decrypt recovers plaintext', () {
+      final c = gcmCipher(12);
       final iv = Uint8List(12);
-      final cipher = encGcm(12).encrypt('hello fortis', iv: iv);
-      expect(decGcm(12).decryptToString(cipher), equals('hello fortis'));
+      final ciphertext = c.encrypt('hello fortis', iv: iv);
+      expect(c.decryptToString(ciphertext), equals('hello fortis'));
     });
 
     test('nonceSize(8) encrypt → nonceSize(8) decrypt recovers plaintext', () {
-      final cipher = encGcm(8).encrypt('hello fortis');
-      expect(decGcm(8).decryptToString(cipher), equals('hello fortis'));
+      final c = gcmCipher(8);
+      final ciphertext = c.encrypt('hello fortis');
+      expect(c.decryptToString(ciphertext), equals('hello fortis'));
     });
 
     test('nonceSize(8) + iv of wrong size throws FortisConfigException', () {
       expect(
-        () => encGcm(8).encrypt('hello', iv: Uint8List(12)),
+        () => gcmCipher(8).encrypt('hello', iv: Uint8List(12)),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -131,14 +129,12 @@ void main() {
   group('nonceSize() — CCM round-trip', () {
     for (final size in [7, 11, 13]) {
       test('nonceSize($size) encrypt → decrypt recovers plaintext', () {
-        final encrypter = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-            .nonceSize(size)
-            .encrypter(key);
-        final decrypter = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-            .nonceSize(size)
-            .decrypter(key);
-        final cipher = encrypter.encrypt('hello fortis');
-        expect(decrypter.decryptToString(cipher), equals('hello fortis'));
+        final c =
+            (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
+                .nonceSize(size)
+                .cipher(key);
+        final ciphertext = c.encrypt('hello fortis');
+        expect(c.decryptToString(ciphertext), equals('hello fortis'));
       });
     }
   });

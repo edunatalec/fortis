@@ -38,10 +38,9 @@ export 'src/algorithms/aes/aes_key.dart';
 export 'src/algorithms/aes/aes_auth_payload.dart';
 export 'src/algorithms/aes/aes_payload.dart';
 
-// AES builder + operations
+// AES builder + cipher
 export 'src/algorithms/aes/aes_builder.dart';
-export 'src/algorithms/aes/aes_encrypter.dart';
-export 'src/algorithms/aes/aes_decrypter.dart';
+export 'src/algorithms/aes/aes_cipher.dart';
 
 /// Entry point for the Fortis cryptography library.
 ///
@@ -52,10 +51,9 @@ export 'src/algorithms/aes/aes_decrypter.dart';
 /// final key = await Fortis.aes().keySize(256).generateKey();
 ///
 /// // AES encrypt/decrypt
-/// final encrypter = Fortis.aes().mode(AesMode.gcm).key(key).encrypter();
-/// final decrypter = Fortis.aes().mode(AesMode.gcm).key(key).decrypter();
-/// final ciphertext = encrypter.encrypt(plaintext);
-/// final recovered  = decrypter.decrypt(ciphertext);
+/// final cipher = Fortis.aes().mode(AesMode.gcm).cipher(key);
+/// final ciphertext = cipher.encrypt(plaintext);
+/// final recovered  = cipher.decryptToString(ciphertext);
 ///
 /// // RSA
 /// final pair = await Fortis.rsa().keySize(2048).generateKeyPair();

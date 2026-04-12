@@ -4,8 +4,7 @@ import 'dart:typed_data';
 
 import '../../core/fortis_log.dart';
 import '../../exceptions/fortis_config_exception.dart';
-import 'aes_decrypter.dart';
-import 'aes_encrypter.dart';
+import 'aes_cipher.dart';
 import 'aes_key.dart';
 import 'aes_mode.dart';
 import 'aes_padding.dart';
@@ -40,8 +39,7 @@ class AesBuilder {
   /// - [AesAuthModeBuilder] for [AesMode.gcm] and [AesMode.ccm], which
   ///   exposes [AesAuthModeBuilder.aad] and [AesAuthModeBuilder.tagSize].
   ///
-  /// Call `.encrypter(myKey)` or `.decrypter(myKey)` on the returned builder
-  /// to build the cipher object.
+  /// Call `.cipher(myKey)` on the returned builder to build the cipher object.
   AesModeBuilder mode(AesMode mode) => switch (mode) {
     AesMode.ecb || AesMode.cbc => AesBlockModeBuilder._(mode: mode),
     AesMode.ctr ||
@@ -57,18 +55,14 @@ class AesBuilder {
 
 /// Abstract base for mode-specific AES builders.
 ///
-/// Call [encrypter] or [decrypter] with a [FortisAesKey] to build the
-/// cipher object.
+/// Call [cipher] with a [FortisAesKey] to build the cipher object.
 sealed class AesModeBuilder {
   final AesMode _mode;
 
   AesModeBuilder._({required AesMode mode}) : _mode = mode;
 
-  /// Builds an [AesEncrypter] for this configuration using [key].
-  AesEncrypter encrypter(FortisAesKey key);
-
-  /// Builds an [AesDecrypter] for this configuration using [key].
-  AesDecrypter decrypter(FortisAesKey key);
+  /// Builds an [AesCipher] for this configuration using [key].
+  AesCipher cipher(FortisAesKey key);
 }
 
 /// Builder for block modes (ECB, CBC). Exposes [padding].
@@ -77,10 +71,10 @@ sealed class AesModeBuilder {
 ///
 /// Example:
 /// ```dart
-/// final encrypter = Fortis.aes()
+/// final cipher = Fortis.aes()
 ///     .mode(AesMode.cbc)
 ///     .padding(AesPadding.pkcs7)
-///     .encrypter(myKey);
+///     .cipher(myKey);
 /// ```
 final class AesBlockModeBuilder extends AesModeBuilder {
   final AesPadding _padding;
@@ -96,12 +90,8 @@ final class AesBlockModeBuilder extends AesModeBuilder {
       AesBlockModeBuilder._(mode: _mode, padding: padding);
 
   @override
-  AesEncrypter encrypter(FortisAesKey key) =>
-      AesEncrypter.block(mode: _mode, key: key, padding: _padding);
-
-  @override
-  AesDecrypter decrypter(FortisAesKey key) =>
-      AesDecrypter.block(mode: _mode, key: key, padding: _padding);
+  AesCipher cipher(FortisAesKey key) =>
+      AesCipher.block(mode: _mode, key: key, padding: _padding);
 }
 
 /// Builder for stream modes (CTR, CFB, OFB). No user-configurable padding.
@@ -111,20 +101,16 @@ final class AesBlockModeBuilder extends AesModeBuilder {
 ///
 /// Example:
 /// ```dart
-/// final encrypter = Fortis.aes()
+/// final cipher = Fortis.aes()
 ///     .mode(AesMode.ctr)
-///     .encrypter(myKey);
+///     .cipher(myKey);
 /// ```
 final class AesStreamModeBuilder extends AesModeBuilder {
   AesStreamModeBuilder._({required super.mode}) : super._();
 
   @override
-  AesEncrypter encrypter(FortisAesKey key) =>
-      AesEncrypter.stream(mode: _mode, key: key);
-
-  @override
-  AesDecrypter decrypter(FortisAesKey key) =>
-      AesDecrypter.stream(mode: _mode, key: key);
+  AesCipher cipher(FortisAesKey key) =>
+      AesCipher.stream(mode: _mode, key: key);
 }
 
 /// Builder for authenticated modes (GCM, CCM). Exposes [aad], [tagSize], and [nonceSize].
@@ -133,11 +119,11 @@ final class AesStreamModeBuilder extends AesModeBuilder {
 ///
 /// Example:
 /// ```dart
-/// final encrypter = Fortis.aes()
+/// final cipher = Fortis.aes()
 ///     .mode(AesMode.gcm)
 ///     .nonceSize(16)
 ///     .aad(Uint8List.fromList(utf8.encode('user-id-123')))
-///     .encrypter(myKey);
+///     .cipher(myKey);
 /// ```
 final class AesAuthModeBuilder extends AesModeBuilder {
   final Uint8List? _aad;
@@ -225,16 +211,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
   }
 
   @override
-  AesEncrypter encrypter(FortisAesKey key) => AesEncrypter.auth(
-    mode: _mode,
-    key: key,
-    aad: _aad,
-    tagSizeBits: _tagSizeBits,
-    nonceSize: _nonceSize,
-  );
-
-  @override
-  AesDecrypter decrypter(FortisAesKey key) => AesDecrypter.auth(
+  AesCipher cipher(FortisAesKey key) => AesCipher.auth(
     mode: _mode,
     key: key,
     aad: _aad,
