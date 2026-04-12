@@ -59,6 +59,7 @@ class RsaDecrypter {
   Uint8List decrypt(Object input) {
     if (input is Uint8List) return _decryptBytes(input);
     if (input is String) return _decryptBytes(base64Decode(input));
+
     throw FortisConfigException(
       'Unsupported input type: ${input.runtimeType}. '
       'Expected String or Uint8List.',
@@ -99,18 +100,21 @@ class RsaDecrypter {
   Uint8List _decryptPkcs1v15(Uint8List ciphertext) {
     final cipher = PKCS1Encoding(RSAEngine())
       ..init(false, PrivateKeyParameter<RSAPrivateKey>(key.key));
+
     return cipher.process(ciphertext);
   }
 
   Uint8List _decryptOaepV1(Uint8List ciphertext) {
     final cipher = OAEPEncoding.withSHA1(RSAEngine())
       ..init(false, PrivateKeyParameter<RSAPrivateKey>(key.key));
+
     return cipher.process(ciphertext);
   }
 
   Uint8List _decryptOaepV2(Uint8List ciphertext) {
     final cipher = OAEPEncoding.withCustomDigest(hash.toDigest, RSAEngine())
       ..init(false, PrivateKeyParameter<RSAPrivateKey>(key.key));
+
     return cipher.process(ciphertext);
   }
 

@@ -36,9 +36,11 @@ Uint8List oaepV21Encrypt({
   // 2. DB = lHash || PS || 0x01 || M
   final dbLen = k - hLen - 1;
   final db = Uint8List(dbLen);
+
   db.setAll(0, lHash);
   // PS (zero bytes) is already initialised
   final separatorIdx = dbLen - message.length - 1;
+
   db[separatorIdx] = 0x01;
   db.setAll(separatorIdx + 1, message);
 
@@ -53,6 +55,7 @@ Uint8List oaepV21Encrypt({
 
   // 6. EM = 0x00 || maskedSeed || maskedDB
   final em = Uint8List(k);
+
   em[0] = 0x00;
   em.setAll(1, maskedSeed);
   em.setAll(1 + hLen, maskedDb);
@@ -60,7 +63,9 @@ Uint8List oaepV21Encrypt({
   // 7. RSA encryption — RSAEngine accepts up to inputBlockSize+1 = k bytes
   final engine = RSAEngine()..init(true, PublicKeyParameter<RSAPublicKey>(key));
   final out = Uint8List(engine.outputBlockSize);
+
   engine.processBlock(em, 0, em.length, out, 0);
+
   return out;
 }
 
@@ -196,15 +201,18 @@ BigInt _bytesToBigInt(Uint8List bytes) {
   for (final b in bytes) {
     result = (result << 8) | BigInt.from(b);
   }
+
   return result;
 }
 
 Uint8List _bigIntToBytes(BigInt value, int length) {
   final result = Uint8List(length);
+
   var temp = value;
   for (var i = length - 1; i >= 0; i--) {
     result[i] = (temp & BigInt.from(0xff)).toInt();
     temp = temp >> 8;
   }
+
   return result;
 }

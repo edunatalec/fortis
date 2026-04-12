@@ -204,8 +204,10 @@ class FortisRsaPrivateKey {
 /// Wraps a base64 string with line breaks every 64 characters.
 String _wrapBase64(String b64) {
   final buf = StringBuffer();
+
   for (var i = 0; i < b64.length; i += 64) {
     buf.writeln(b64.substring(i, i + 64 > b64.length ? b64.length : i + 64));
   }
+
   return buf.toString().trimRight();
 }

@@ -73,9 +73,11 @@ class FortisRsaPublicKey {
   }) {
     try {
       final der = ASN1Utils.getBytesFromPEMString(pem);
+
       return FortisRsaPublicKey.fromDer(der, format: format);
     } catch (e) {
       if (e is FortisKeyException) rethrow;
+
       throw FortisKeyException('Invalid PEM for RSA public key: $e');
     }
   }
@@ -94,6 +96,7 @@ class FortisRsaPublicKey {
       return FortisRsaPublicKey.fromDer(base64Decode(base64), format: format);
     } catch (e) {
       if (e is FortisKeyException) rethrow;
+
       throw FortisKeyException(
         'Invalid Base64-encoded DER for RSA public key: $e',
       );
@@ -161,6 +164,7 @@ class FortisRsaPublicKey {
     final bitStringBytes = Uint8List.fromList(
       spki.subjectPublicKey.stringValues!,
     );
+
     return _decodePkcs1(bitStringBytes);
   }
 
@@ -169,6 +173,7 @@ class FortisRsaPublicKey {
     final seq = parser.nextObject() as ASN1Sequence;
     final n = (seq.elements![0] as ASN1Integer).integer!;
     final e = (seq.elements![1] as ASN1Integer).integer!;
+
     return FortisRsaPublicKey(RSAPublicKey(n, e));
   }
 
@@ -186,8 +191,10 @@ class FortisRsaPublicKey {
 /// Wraps a base64 string with line breaks every 64 characters.
 String _wrapBase64(String b64) {
   final buf = StringBuffer();
+
   for (var i = 0; i < b64.length; i += 64) {
     buf.writeln(b64.substring(i, i + 64 > b64.length ? b64.length : i + 64));
   }
+
   return buf.toString().trimRight();
 }

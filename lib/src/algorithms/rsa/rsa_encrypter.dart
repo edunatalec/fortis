@@ -59,7 +59,9 @@ class RsaEncrypter {
   /// Throws [FortisConfigException] if [plaintext] is not a [String] or [Uint8List].
   Uint8List encrypt(Object plaintext) {
     _warnIfNeeded();
+
     final bytes = _toBytes(plaintext);
+
     try {
       return switch (padding) {
         RsaPadding.pkcs1_v1_5 => _encryptPkcs1v15(bytes),
@@ -90,6 +92,7 @@ class RsaEncrypter {
   Uint8List _toBytes(Object plaintext) {
     if (plaintext is Uint8List) return plaintext;
     if (plaintext is String) return Uint8List.fromList(utf8.encode(plaintext));
+
     throw FortisConfigException(
       'Unsupported plaintext type: ${plaintext.runtimeType}. '
       'Expected String or Uint8List.',
@@ -103,18 +106,21 @@ class RsaEncrypter {
   Uint8List _encryptPkcs1v15(Uint8List plaintext) {
     final cipher = PKCS1Encoding(RSAEngine())
       ..init(true, PublicKeyParameter<RSAPublicKey>(key.key));
+
     return cipher.process(plaintext);
   }
 
   Uint8List _encryptOaepV1(Uint8List plaintext) {
     final cipher = OAEPEncoding.withSHA1(RSAEngine())
       ..init(true, PublicKeyParameter<RSAPublicKey>(key.key));
+
     return cipher.process(plaintext);
   }
 
   Uint8List _encryptOaepV2(Uint8List plaintext) {
     final cipher = OAEPEncoding.withCustomDigest(hash.toDigest, RSAEngine())
       ..init(true, PublicKeyParameter<RSAPublicKey>(key.key));
+
     return cipher.process(plaintext);
   }
 

@@ -236,5 +236,6 @@ FortisAesKey _generateSync(int keySize) {
   final bytes = Uint8List.fromList(
     List.generate(keySize ~/ 8, (_) => rng.nextInt(256)),
   );
+
   return FortisAesKey.fromTrustedBytes(bytes);
 }

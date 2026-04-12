@@ -167,12 +167,14 @@ class AesCipher {
       final data = base64Encode(
         buffer.sublist(nonceSize, buffer.length - tagSize),
       );
+
       return AesAuthPayload(iv: ivB64, data: data, tag: tag);
     }
 
     // CBC, CTR, CFB, OFB — IV is always 16 bytes
     final ivB64 = base64Encode(buffer.sublist(0, 16));
     final data = base64Encode(buffer.sublist(16));
+
     return AesPayload(iv: ivB64, data: data);
   }
 
@@ -220,17 +222,20 @@ class AesCipher {
 
     if (input is AesAuthPayload) {
       final isAuth = _mode == AesMode.gcm || _mode == AesMode.ccm;
+
       if (!isAuth) {
         throw FortisConfigException(
           'AesAuthPayload is only valid for authenticated modes (GCM, CCM). '
           'Current mode: ${_mode.name.toUpperCase()}.',
         );
       }
+
       return _decryptBytes(_fromMap(input.toMap()));
     }
 
     if (input is AesPayload) {
       final isAuth = _mode == AesMode.gcm || _mode == AesMode.ccm;
+
       if (isAuth) {
         throw FortisConfigException(
           'AesPayload is not valid for authenticated modes (GCM, CCM). '
@@ -238,6 +243,7 @@ class AesCipher {
           'Use AesAuthPayload instead.',
         );
       }
+
       return _decryptBytes(_fromMap(input.toMap()));
     }
 
@@ -336,11 +342,13 @@ class AesCipher {
         "Map must contain either 'iv' or 'nonce', not both.",
       );
     }
+
     if (!hasIv && !hasNonce) {
       throw const FortisConfigException(
         "Map must contain either 'iv' or 'nonce'.",
       );
     }
+
     if (!map.containsKey('data')) {
       throw const FortisConfigException(
         "Map is missing required field 'data'.",
@@ -360,6 +368,7 @@ class AesCipher {
 
     if (isAuth) {
       final tagBytes = base64Decode(map['tag']!);
+
       return Uint8List.fromList([...ivBytes, ...dataBytes, ...tagBytes]);
     }
 
@@ -374,31 +383,39 @@ class AesCipher {
     if (iv != null) {
       throw FortisConfigException('ECB mode does not use an IV.');
     }
+
     final padding = _padding!;
+
     if (padding == AesPadding.noPadding && plaintext.length % 16 != 0) {
       throw FortisConfigException(
         'AesPadding.noPadding requires data length to be a multiple of 16 bytes, '
         'got ${plaintext.length}.',
       );
     }
+
     final cipher = _paddedBlockCipher(padding, ECBBlockCipher(AESEngine()));
+
     cipher.init(
       true,
       PaddedBlockCipherParameters(KeyParameter(_key.toBytes()), null),
     );
+
     return cipher.process(plaintext);
   }
 
   Uint8List _encryptCbc(Uint8List plaintext, Uint8List? iv) {
     final padding = _padding!;
+
     if (padding == AesPadding.noPadding && plaintext.length % 16 != 0) {
       throw FortisConfigException(
         'AesPadding.noPadding requires data length to be a multiple of 16 bytes, '
         'got ${plaintext.length}.',
       );
     }
+
     final resolvedIv = _resolveIv(16, iv, 'CBC');
     final cipher = _paddedBlockCipher(padding, CBCBlockCipher(AESEngine()));
+
     cipher.init(
       true,
       PaddedBlockCipherParameters(
@@ -406,6 +423,7 @@ class AesCipher {
         null,
       ),
     );
+
     return _prepend(resolvedIv, cipher.process(plaintext));
   }
 
@@ -428,20 +446,24 @@ class AesCipher {
   Uint8List _encryptCfb(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(16, iv, 'CFB');
     final cipher = CFBBlockCipher(AESEngine(), 16);
+
     cipher.init(
       true,
       ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv),
     );
+
     return _prepend(resolvedIv, _processStreamBlockCipher(cipher, plaintext));
   }
 
   Uint8List _encryptOfb(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(16, iv, 'OFB');
     final cipher = OFBBlockCipher(AESEngine(), 16);
+
     cipher.init(
       true,
       ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv),
     );
+
     return _prepend(resolvedIv, _processStreamBlockCipher(cipher, plaintext));
   }
 
@@ -452,6 +474,7 @@ class AesCipher {
   Uint8List _encryptGcm(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(_nonceSize, iv, 'GCM'); // NIST SP 800-38D
     final cipher = GCMBlockCipher(AESEngine());
+
     cipher.init(
       true,
       AEADParameters(
@@ -461,6 +484,7 @@ class AesCipher {
         _aad ?? Uint8List(0),
       ),
     );
+
     // process() returns ciphertext || auth_tag (PointyCastle appends the tag)
     return _prepend(resolvedIv, cipher.process(plaintext));
   }
@@ -468,6 +492,7 @@ class AesCipher {
   Uint8List _encryptCcm(Uint8List plaintext, Uint8List? iv) {
     final nonce = _resolveNonce(_nonceSize, iv, 'CCM'); // NIST SP 800-38C
     final cipher = CCMBlockCipher(AESEngine());
+
     cipher.init(
       true,
       AEADParameters(
@@ -477,6 +502,7 @@ class AesCipher {
         _aad ?? Uint8List(0),
       ),
     );
+
     return _prepend(nonce, cipher.process(plaintext));
   }
 
@@ -487,10 +513,12 @@ class AesCipher {
   Uint8List _decryptEcb(Uint8List ciphertext) {
     final padding = _padding!;
     final cipher = _paddedBlockCipher(padding, ECBBlockCipher(AESEngine()));
+
     cipher.init(
       false,
       PaddedBlockCipherParameters(KeyParameter(_key.toBytes()), null),
     );
+
     return cipher.process(ciphertext);
   }
 
@@ -501,10 +529,12 @@ class AesCipher {
         '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
       );
     }
+
     final iv = ciphertext.sublist(0, 16);
     final body = ciphertext.sublist(16);
     final padding = _padding!;
     final cipher = _paddedBlockCipher(padding, CBCBlockCipher(AESEngine()));
+
     cipher.init(
       false,
       PaddedBlockCipherParameters(
@@ -512,6 +542,7 @@ class AesCipher {
         null,
       ),
     );
+
     return cipher.process(body);
   }
 
@@ -526,12 +557,17 @@ class AesCipher {
         '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
       );
     }
+
     final iv = ciphertext.sublist(0, 16);
     final body = ciphertext.sublist(16);
     final cipher = CTRStreamCipher(AESEngine());
+
     cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+
     final output = Uint8List(body.length);
+
     cipher.processBytes(body, 0, body.length, output, 0);
+
     return output;
   }
 
@@ -542,10 +578,13 @@ class AesCipher {
         '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
       );
     }
+
     final iv = ciphertext.sublist(0, 16);
     final body = ciphertext.sublist(16);
     final cipher = CFBBlockCipher(AESEngine(), 16);
+
     cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+
     return _processStreamBlockCipher(cipher, body);
   }
 
@@ -556,10 +595,13 @@ class AesCipher {
         '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
       );
     }
+
     final iv = ciphertext.sublist(0, 16);
     final body = ciphertext.sublist(16);
     final cipher = OFBBlockCipher(AESEngine(), 16);
+
     cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+
     return _processStreamBlockCipher(cipher, body);
   }
 
@@ -574,9 +616,11 @@ class AesCipher {
         '(expected at least $_nonceSize bytes for IV, got ${ciphertext.length}).',
       );
     }
+
     final iv = ciphertext.sublist(0, _nonceSize); // NIST SP 800-38D
     final body = ciphertext.sublist(_nonceSize); // ciphertext + auth tag
     final cipher = GCMBlockCipher(AESEngine());
+
     cipher.init(
       false,
       AEADParameters(
@@ -586,6 +630,7 @@ class AesCipher {
         _aad ?? Uint8List(0),
       ),
     );
+
     try {
       return cipher.process(body);
     } catch (e) {
@@ -603,9 +648,11 @@ class AesCipher {
         '(expected at least $_nonceSize bytes for nonce, got ${ciphertext.length}).',
       );
     }
+
     final nonce = ciphertext.sublist(0, _nonceSize); // NIST SP 800-38C
     final body = ciphertext.sublist(_nonceSize);
     final cipher = CCMBlockCipher(AESEngine());
+
     cipher.init(
       false,
       AEADParameters(
@@ -615,6 +662,7 @@ class AesCipher {
         _aad ?? Uint8List(0),
       ),
     );
+
     try {
       return cipher.process(body);
     } catch (e) {
@@ -635,9 +683,11 @@ class AesCipher {
   /// Throws [FortisConfigException] for any other type.
   Uint8List _toBytes(Object plaintext) {
     if (plaintext is Uint8List) return plaintext;
+
     if (plaintext is String) {
       return Uint8List.fromList(utf8.encode(plaintext));
     }
+
     throw FortisConfigException(
       'Unsupported plaintext type: ${plaintext.runtimeType}. '
       'Expected String or Uint8List.',
@@ -654,6 +704,7 @@ class AesCipher {
         '$mode IV must be $expectedSize bytes, got ${provided.length}.',
       );
     }
+
     return provided ?? _randomBytes(expectedSize);
   }
 
@@ -667,6 +718,7 @@ class AesCipher {
         '$mode nonce must be $expectedSize bytes, got ${provided.length}.',
       );
     }
+
     return provided ?? _randomBytes(expectedSize);
   }
 
@@ -689,6 +741,7 @@ class AesCipher {
       final remaining = input.length - offset;
       final tmp = Uint8List(blockSize)..setRange(0, remaining, input, offset);
       final tmpOut = Uint8List(blockSize);
+
       cipher.processBlock(tmp, 0, tmpOut, 0);
       output.setRange(offset, output.length, tmpOut);
     }
@@ -754,18 +807,22 @@ class _ZeroBytePadding implements Padding {
   @override
   int addPadding(Uint8List data, int offset) {
     final count = data.length - offset;
+
     for (var i = offset; i < data.length; i++) {
       data[i] = 0;
     }
+
     return count;
   }
 
   @override
   int padCount(Uint8List data) {
     var i = data.length - 1;
+
     while (i >= 0 && data[i] == 0) {
       i--;
     }
+
     return data.length - 1 - i;
   }
 
@@ -775,7 +832,9 @@ class _ZeroBytePadding implements Padding {
       const blockSize = 16;
       final padLen = blockSize - (data.length % blockSize);
       final out = Uint8List(data.length + padLen);
+
       out.setAll(0, data);
+
       return out; // zero bytes are already the default
     } else {
       final padLen = padCount(data);

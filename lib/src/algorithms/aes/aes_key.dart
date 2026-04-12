@@ -34,12 +34,14 @@ class FortisAesKey {
   /// to a valid AES key size (16, 24, or 32 bytes).
   factory FortisAesKey.fromBytes(Uint8List bytes) {
     final bits = bytes.length * 8;
+
     if (bits != 128 && bits != 192 && bits != 256) {
       throw FortisKeyException(
         'Invalid AES key size: $bits bits. '
         'Must be 128, 192, or 256 bits (16, 24, or 32 bytes).',
       );
     }
+
     return FortisAesKey._(Uint8List.fromList(bytes));
   }
 
@@ -50,6 +52,7 @@ class FortisAesKey {
   factory FortisAesKey.fromBase64(String b64) {
     try {
       final bytes = base64Decode(b64);
+
       return FortisAesKey.fromBytes(bytes);
     } on FortisKeyException {
       rethrow;

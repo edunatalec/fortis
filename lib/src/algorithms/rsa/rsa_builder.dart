@@ -130,9 +130,11 @@ extension RsaBuilderReady
   RsaEncrypter encrypter(FortisRsaPublicKey key, {Object? label}) {
     // _padding and _hash are guaranteed non-null in this extension context
     // (only reachable after .padding() and .hash() have been called)
-    final p = _padding!; // ignore: unnecessary_non_null_assertion
-    final h = _hash!; // ignore: unnecessary_non_null_assertion
+    final p = _padding!;
+    final h = _hash!;
+
     _validateLabel(label, p);
+
     return RsaEncrypter(
       key: key,
       padding: p,
@@ -148,9 +150,11 @@ extension RsaBuilderReady
   ///
   /// Throws [FortisConfigException] if [label] is provided with a non-v2.1 padding.
   RsaDecrypter decrypter(FortisRsaPrivateKey key, {Object? label}) {
-    final p = _padding!; // ignore: unnecessary_non_null_assertion
-    final h = _hash!; // ignore: unnecessary_non_null_assertion
+    final p = _padding!;
+    final h = _hash!;
+
     _validateLabel(label, p);
+
     return RsaDecrypter(
       key: key,
       padding: p,
@@ -170,6 +174,7 @@ void _validateKeySize(int keySize) {
       'keySize must be at least 2048 bits, got $keySize.',
     );
   }
+
   if (keySize & (keySize - 1) != 0) {
     throw FortisConfigException('keySize must be a power of 2, got $keySize.');
   }
@@ -177,12 +182,14 @@ void _validateKeySize(int keySize) {
 
 void _validateLabel(Object? label, RsaPadding padding) {
   if (label == null) return;
+
   if (padding != RsaPadding.oaep_v2_1) {
     throw FortisConfigException(
       'label is only supported with RsaPadding.oaep_v2_1, '
       'but padding is $padding.',
     );
   }
+
   if (label is! String && label is! Uint8List) {
     throw FortisConfigException(
       'label must be a String or Uint8List, got ${label.runtimeType}.',
@@ -194,6 +201,7 @@ void _validateLabel(Object? label, RsaPadding padding) {
 Uint8List? _normalizeLabel(Object? label) {
   if (label == null) return null;
   if (label is Uint8List) return label;
+
   return Uint8List.fromList((label as String).codeUnits);
 }
 
@@ -201,6 +209,7 @@ FortisRsaKeyPair _generateSync(int keySize) {
   final secureRandom = FortunaRandom();
   final rng = Random.secure();
   final seed = Uint8List.fromList(List.generate(32, (_) => rng.nextInt(256)));
+
   secureRandom.seed(KeyParameter(seed));
 
   final keyGen = RSAKeyGenerator()
@@ -212,6 +221,7 @@ FortisRsaKeyPair _generateSync(int keySize) {
     );
 
   final pair = keyGen.generateKeyPair();
+
   return FortisRsaKeyPair(
     publicKey: FortisRsaPublicKey(pair.publicKey),
     privateKey: FortisRsaPrivateKey(pair.privateKey),

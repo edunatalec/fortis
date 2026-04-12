@@ -122,6 +122,7 @@ Future<void> aesAuthenticatedExample() async {
         .nonceSize(size)
         .cipher(key);
     final ct = ccmCustom.encrypt('hello fortis');
+
     print('AES-CCM nonce=$size decrypted: ${ccmCustom.decryptToString(ct)}');
   }
 }
@@ -262,6 +263,7 @@ Future<void> rsaPaddingHashMatrixExample() async {
         .hash(hash)
         .decrypter(pair.privateKey)
         .decrypt(ct);
+
     print('OAEP v2 + $hash: ${String.fromCharCodes(pt)}');
   }
 
@@ -277,6 +279,7 @@ Future<void> rsaPaddingHashMatrixExample() async {
         .hash(hash)
         .decrypter(pair.privateKey)
         .decrypt(ct);
+
     print('OAEP v2.1 + $hash: ${String.fromCharCodes(pt)}');
   }
 }
