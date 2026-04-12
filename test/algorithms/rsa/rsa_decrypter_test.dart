@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:fortis/fortis.dart';
@@ -13,36 +12,106 @@ void main() {
     otherPair = await Fortis.rsa().keySize(2048).generateKeyPair();
   });
 
-  group('RsaDecrypter', () {
-    final plaintext = Uint8List.fromList('hello fortis'.codeUnits);
+  RsaEncrypter makeEncrypter(
+    FortisRsaKeyPair kp, {
+    RsaPadding padding = RsaPadding.oaep_v2,
+    RsaHash hash = RsaHash.sha256,
+  }) =>
+      Fortis.rsa().padding(padding).hash(hash).encrypter(kp.publicKey);
 
-    RsaEncrypter makeEncrypter(FortisRsaKeyPair kp) => Fortis.rsa()
-        .padding(RsaPadding.oaep_v2)
-        .hash(RsaHash.sha256)
-        .encrypter(kp.publicKey);
+  RsaDecrypter makeDecrypter(
+    FortisRsaKeyPair kp, {
+    RsaPadding padding = RsaPadding.oaep_v2,
+    RsaHash hash = RsaHash.sha256,
+  }) =>
+      Fortis.rsa().padding(padding).hash(hash).decrypter(kp.privateKey);
 
-    RsaDecrypter makeDecrypter(FortisRsaKeyPair kp) => Fortis.rsa()
-        .padding(RsaPadding.oaep_v2)
-        .hash(RsaHash.sha256)
-        .decrypter(kp.privateKey);
+  final plaintext = Uint8List.fromList('hello fortis'.codeUnits);
 
-    test('decrypt recovers original plaintext', () {
+  // ── decrypt(Object input) — Uint8List ──────────────────────────────────
+
+  group('decrypt(Object input) — Uint8List input', () {
+    test('recovers original plaintext from raw Uint8List', () {
       final ciphertext = makeEncrypter(pair).encrypt(plaintext);
       final recovered = makeDecrypter(pair).decrypt(ciphertext);
       expect(recovered, equals(plaintext));
     });
 
-    test(
-      'end-to-end round-trip: generate → encrypt → decrypt → equal',
-      () async {
-        final newPair = await Fortis.rsa().keySize(2048).generateKeyPair();
-        final ciphertext = makeEncrypter(newPair).encrypt(plaintext);
-        final recovered = makeDecrypter(newPair).decrypt(ciphertext);
-        expect(recovered, equals(plaintext));
-      },
-    );
+    test('end-to-end: encrypt(Uint8List) → decrypt(Uint8List) → equals original', () {
+      final ciphertext = makeEncrypter(pair).encrypt(plaintext);
+      expect(makeDecrypter(pair).decrypt(ciphertext), equals(plaintext));
+    });
+  });
 
-    test('wrong key throws FortisEncryptionException', () {
+  // ── decrypt(Object input) — String (Base64) ────────────────────────────
+
+  group('decrypt(Object input) — String (Base64) input', () {
+    test('recovers original plaintext from Base64 string', () {
+      final b64 = makeEncrypter(pair).encryptToString(plaintext);
+      final recovered = makeDecrypter(pair).decrypt(b64);
+      expect(recovered, equals(plaintext));
+    });
+
+    test('end-to-end: encryptToString(String) → decrypt(String) → equals original bytes', () {
+      final b64 = makeEncrypter(pair).encryptToString('hello fortis');
+      final recovered = makeDecrypter(pair).decrypt(b64);
+      expect(
+        recovered,
+        equals(Uint8List.fromList('hello fortis'.codeUnits)),
+      );
+    });
+  });
+
+  // ── decrypt(Object input) — unsupported type ───────────────────────────
+
+  group('decrypt(Object input) — unsupported type', () {
+    test('throws FortisConfigException with descriptive message', () {
+      expect(
+        () => makeDecrypter(pair).decrypt(42),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+  });
+
+  // ── decryptToString(Object input) ─────────────────────────────────────
+
+  group('decryptToString(Object input)', () {
+    test('recovers original UTF-8 string from Uint8List input', () {
+      const original = 'hello fortis';
+      final ciphertext = makeEncrypter(pair).encrypt(original);
+      expect(makeDecrypter(pair).decryptToString(ciphertext), equals(original));
+    });
+
+    test('recovers original UTF-8 string from Base64 String input', () {
+      const original = 'hello fortis';
+      final b64 = makeEncrypter(pair).encryptToString(original);
+      expect(makeDecrypter(pair).decryptToString(b64), equals(original));
+    });
+
+    test('end-to-end: encrypt(String) → decryptToString(Uint8List) → equals original', () {
+      const original = 'hello fortis';
+      final ciphertext = makeEncrypter(pair).encrypt(original);
+      expect(makeDecrypter(pair).decryptToString(ciphertext), equals(original));
+    });
+
+    test('end-to-end: encryptToString(String) → decryptToString(String) → equals original', () {
+      const original = 'Fortis é uma biblioteca de criptografia!';
+      final b64 = makeEncrypter(pair).encryptToString(original);
+      expect(makeDecrypter(pair).decryptToString(b64), equals(original));
+    });
+
+    test('unsupported input type throws FortisConfigException', () {
+      expect(
+        () => makeDecrypter(pair).decryptToString(42),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+  });
+
+  // ── wrong key ──────────────────────────────────────────────────────────
+
+  group('wrong key', () {
+    test('decrypt with wrong key throws FortisEncryptionException', () {
       final ciphertext = makeEncrypter(pair).encrypt(plaintext);
       expect(
         () => makeDecrypter(otherPair).decrypt(ciphertext),
@@ -50,55 +119,19 @@ void main() {
       );
     });
 
-    test('decryptToString recovers original UTF-8 string', () {
-      const original = 'hello fortis';
-      final encrypter = makeEncrypter(pair);
-      final decrypter = makeDecrypter(pair);
-      final ciphertext = encrypter.encryptString(original);
-      expect(decrypter.decryptToString(ciphertext), equals(original));
+    test('decryptToString with wrong key throws FortisEncryptionException', () {
+      final ciphertext = makeEncrypter(pair).encrypt(plaintext);
+      expect(
+        () => makeDecrypter(otherPair).decryptToString(ciphertext),
+        throwsA(isA<FortisEncryptionException>()),
+      );
     });
-
-    test(
-      'decryptFromBase64 recovers original bytes from Base64 ciphertext',
-      () {
-        final encrypter = makeEncrypter(pair);
-        final decrypter = makeDecrypter(pair);
-        final b64Ciphertext = base64Encode(encrypter.encrypt(plaintext));
-        expect(decrypter.decryptFromBase64(b64Ciphertext), equals(plaintext));
-      },
-    );
-
-    test(
-      'decryptFromBase64ToString recovers original UTF-8 string from Base64 ciphertext',
-      () {
-        const original = 'hello fortis';
-        final encrypter = makeEncrypter(pair);
-        final decrypter = makeDecrypter(pair);
-        final b64Ciphertext = encrypter.encryptStringToBase64(original);
-        expect(
-          decrypter.decryptFromBase64ToString(b64Ciphertext),
-          equals(original),
-        );
-      },
-    );
-
-    test(
-      'end-to-end: encryptStringToBase64 → decryptFromBase64ToString equals original',
-      () {
-        const original = 'Fortis é uma biblioteca de criptografia!';
-        final encrypter = makeEncrypter(pair);
-        final decrypter = makeDecrypter(pair);
-        final b64Ciphertext = encrypter.encryptStringToBase64(original);
-        expect(
-          decrypter.decryptFromBase64ToString(b64Ciphertext),
-          equals(original),
-        );
-      },
-    );
   });
 
+  // ── padding × hash matrix ──────────────────────────────────────────────
+
   group('padding × hash matrix', () {
-    final plaintext = Uint8List.fromList('matrix test'.codeUnits);
+    final matrixPlaintext = Uint8List.fromList('matrix test'.codeUnits);
 
     const hashes = [
       RsaHash.sha1,
@@ -110,13 +143,12 @@ void main() {
       RsaHash.sha3_512,
     ];
 
-    // pkcs1_v1_5 — does not use a hash; tested once with a placeholder hash
     test('round-trip: RsaPadding.pkcs1_v1_5', () {
       final ciphertext = Fortis.rsa()
           .padding(RsaPadding.pkcs1_v1_5)
           .hash(RsaHash.sha256)
           .encrypter(pair.publicKey)
-          .encrypt(plaintext);
+          .encrypt(matrixPlaintext);
 
       final recovered = Fortis.rsa()
           .padding(RsaPadding.pkcs1_v1_5)
@@ -124,16 +156,15 @@ void main() {
           .decrypter(pair.privateKey)
           .decrypt(ciphertext);
 
-      expect(recovered, equals(plaintext));
+      expect(recovered, equals(matrixPlaintext));
     });
 
-    // oaep_v1 — SHA-1 based by definition
     test('round-trip: RsaPadding.oaep_v1 + RsaHash.sha1', () {
       final ciphertext = Fortis.rsa()
           .padding(RsaPadding.oaep_v1)
           .hash(RsaHash.sha1)
           .encrypter(pair.publicKey)
-          .encrypt(plaintext);
+          .encrypt(matrixPlaintext);
 
       final recovered = Fortis.rsa()
           .padding(RsaPadding.oaep_v1)
@@ -141,17 +172,16 @@ void main() {
           .decrypter(pair.privateKey)
           .decrypt(ciphertext);
 
-      expect(recovered, equals(plaintext));
+      expect(recovered, equals(matrixPlaintext));
     });
 
-    // oaep_v2 — all hashes
     for (final hash in hashes) {
       test('round-trip: RsaPadding.oaep_v2 + $hash', () {
         final ciphertext = Fortis.rsa()
             .padding(RsaPadding.oaep_v2)
             .hash(hash)
             .encrypter(pair.publicKey)
-            .encrypt(plaintext);
+            .encrypt(matrixPlaintext);
 
         final recovered = Fortis.rsa()
             .padding(RsaPadding.oaep_v2)
@@ -159,18 +189,17 @@ void main() {
             .decrypter(pair.privateKey)
             .decrypt(ciphertext);
 
-        expect(recovered, equals(plaintext));
+        expect(recovered, equals(matrixPlaintext));
       });
     }
 
-    // oaep_v2_1 — all hashes
     for (final hash in hashes) {
       test('round-trip: RsaPadding.oaep_v2_1 + $hash', () {
         final ciphertext = Fortis.rsa()
             .padding(RsaPadding.oaep_v2_1)
             .hash(hash)
             .encrypter(pair.publicKey)
-            .encrypt(plaintext);
+            .encrypt(matrixPlaintext);
 
         final recovered = Fortis.rsa()
             .padding(RsaPadding.oaep_v2_1)
@@ -178,18 +207,18 @@ void main() {
             .decrypter(pair.privateKey)
             .decrypt(ciphertext);
 
-        expect(recovered, equals(plaintext));
+        expect(recovered, equals(matrixPlaintext));
       });
     }
 
-    // oaep_v2_1 label sub-group (sha256 as representative hash)
+    // oaep_v2_1 label sub-group
     group('RsaPadding.oaep_v2_1 label', () {
       test('matching label succeeds', () {
         final ciphertext = Fortis.rsa()
             .padding(RsaPadding.oaep_v2_1)
             .hash(RsaHash.sha256)
             .encrypter(pair.publicKey, label: 'fortis-label')
-            .encrypt(plaintext);
+            .encrypt(matrixPlaintext);
 
         final recovered = Fortis.rsa()
             .padding(RsaPadding.oaep_v2_1)
@@ -197,7 +226,7 @@ void main() {
             .decrypter(pair.privateKey, label: 'fortis-label')
             .decrypt(ciphertext);
 
-        expect(recovered, equals(plaintext));
+        expect(recovered, equals(matrixPlaintext));
       });
 
       test('different label throws FortisEncryptionException', () {
@@ -205,7 +234,7 @@ void main() {
             .padding(RsaPadding.oaep_v2_1)
             .hash(RsaHash.sha256)
             .encrypter(pair.publicKey, label: 'fortis-label')
-            .encrypt(plaintext);
+            .encrypt(matrixPlaintext);
 
         expect(
           () => Fortis.rsa()
@@ -222,7 +251,7 @@ void main() {
             .padding(RsaPadding.oaep_v2_1)
             .hash(RsaHash.sha256)
             .encrypter(pair.publicKey, label: 'fortis-label')
-            .encrypt(plaintext);
+            .encrypt(matrixPlaintext);
 
         expect(
           () => Fortis.rsa()

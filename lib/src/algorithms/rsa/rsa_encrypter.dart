@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
+import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_encryption_exception.dart';
 import 'rsa_hash.dart';
 import 'rsa_oaep_v21.dart';
@@ -22,7 +23,9 @@ import 'rsa_public_key.dart';
 ///     .hash(RsaHash.sha256)
 ///     .encrypter(pair.publicKey);
 ///
-/// final ciphertext = encrypter.encrypt(plaintext);
+/// // Encrypt raw bytes or a String — both are accepted.
+/// final ciphertext = encrypter.encrypt(plaintext); // returns Uint8List
+/// final base64    = encrypter.encryptToString(plaintext); // returns Base64 String
 /// ```
 class RsaEncrypter {
   /// The public key used to encrypt.
@@ -47,17 +50,22 @@ class RsaEncrypter {
     this.label,
   });
 
-  /// Encrypts [plaintext] and returns the ciphertext.
+  /// Encrypts [plaintext] and returns the ciphertext as raw bytes.
   ///
-  /// Throws [FortisEncryptionException] on failure.
-  Uint8List encrypt(Uint8List plaintext) {
+  /// [plaintext] accepts:
+  /// - [Uint8List]: raw bytes, encrypted as-is.
+  /// - [String]: UTF-8 encoded before encryption.
+  ///
+  /// Throws [FortisConfigException] if [plaintext] is not a [String] or [Uint8List].
+  Uint8List encrypt(Object plaintext) {
     _warnIfNeeded();
+    final bytes = _toBytes(plaintext);
     try {
       return switch (padding) {
-        RsaPadding.pkcs1_v1_5 => _encryptPkcs1v15(plaintext),
-        RsaPadding.oaep_v1 => _encryptOaepV1(plaintext),
-        RsaPadding.oaep_v2 => _encryptOaepV2(plaintext),
-        RsaPadding.oaep_v2_1 => _encryptOaepV21(plaintext),
+        RsaPadding.pkcs1_v1_5 => _encryptPkcs1v15(bytes),
+        RsaPadding.oaep_v1 => _encryptOaepV1(bytes),
+        RsaPadding.oaep_v2 => _encryptOaepV2(bytes),
+        RsaPadding.oaep_v2_1 => _encryptOaepV21(bytes),
       };
     } on FortisEncryptionException {
       rethrow;
@@ -66,16 +74,27 @@ class RsaEncrypter {
     }
   }
 
-  /// Encrypts a UTF-8 string and returns raw ciphertext bytes.
-  Uint8List encryptString(String plaintext) =>
-      encrypt(Uint8List.fromList(utf8.encode(plaintext)));
+  /// Encrypts [plaintext] and returns the ciphertext as a Base64-encoded string.
+  ///
+  /// See [encrypt] for accepted [plaintext] types.
+  String encryptToString(Object plaintext) => base64Encode(encrypt(plaintext));
 
-  /// Encrypts raw bytes and returns a Base64-encoded ciphertext string.
-  String encryptToBase64(Uint8List data) => base64Encode(encrypt(data));
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
 
-  /// Encrypts a UTF-8 string and returns a Base64-encoded ciphertext string.
-  String encryptStringToBase64(String plaintext) =>
-      base64Encode(encryptString(plaintext));
+  /// Converts [plaintext] to [Uint8List].
+  ///
+  /// Accepts [Uint8List] or [String] (UTF-8 encoded).
+  /// Throws [FortisConfigException] for any other type.
+  Uint8List _toBytes(Object plaintext) {
+    if (plaintext is Uint8List) return plaintext;
+    if (plaintext is String) return Uint8List.fromList(utf8.encode(plaintext));
+    throw FortisConfigException(
+      'Unsupported plaintext type: ${plaintext.runtimeType}. '
+      'Expected String or Uint8List.',
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Padding implementations

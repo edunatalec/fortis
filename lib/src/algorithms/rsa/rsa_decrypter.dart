@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
+import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_encryption_exception.dart';
 import 'rsa_hash.dart';
 import 'rsa_oaep_v21.dart';
@@ -20,7 +21,9 @@ import 'rsa_private_key.dart';
 ///     .hash(RsaHash.sha256)
 ///     .decrypter(pair.privateKey);
 ///
-/// final plaintext = decrypter.decrypt(ciphertext);
+/// // Decrypt raw bytes or a Base64 String — both are accepted.
+/// final plaintext = decrypter.decrypt(ciphertext); // returns Uint8List
+/// final text      = decrypter.decryptToString(ciphertext); // returns UTF-8 String
 /// ```
 class RsaDecrypter {
   /// The private key used to decrypt.
@@ -45,10 +48,36 @@ class RsaDecrypter {
     this.label,
   });
 
-  /// Decrypts [ciphertext] and returns the original plaintext.
+  /// Decrypts [input] and returns the plaintext as raw bytes.
   ///
-  /// Throws [FortisEncryptionException] on failure.
-  Uint8List decrypt(Uint8List ciphertext) {
+  /// [input] accepts:
+  /// - [Uint8List]: raw ciphertext bytes.
+  /// - [String]: a Base64-encoded ciphertext string.
+  ///
+  /// Throws [FortisConfigException] if [input] is not a [String] or [Uint8List].
+  /// Throws [FortisEncryptionException] if decryption fails (wrong key, corrupted data, etc.).
+  Uint8List decrypt(Object input) {
+    if (input is Uint8List) return _decryptBytes(input);
+    if (input is String) return _decryptBytes(base64Decode(input));
+    throw FortisConfigException(
+      'Unsupported input type: ${input.runtimeType}. '
+      'Expected String or Uint8List.',
+    );
+  }
+
+  /// Decrypts [input] and returns the plaintext as a UTF-8 decoded [String].
+  ///
+  /// See [decrypt] for accepted [input] types.
+  String decryptToString(Object input) => utf8.decode(decrypt(input));
+
+  // ---------------------------------------------------------------------------
+  // Internal dispatch
+  // ---------------------------------------------------------------------------
+
+  /// Decrypts raw [ciphertext] bytes and returns the plaintext.
+  ///
+  /// Throws [FortisEncryptionException] if decryption fails.
+  Uint8List _decryptBytes(Uint8List ciphertext) {
     try {
       return switch (padding) {
         RsaPadding.pkcs1_v1_5 => _decryptPkcs1v15(ciphertext),
@@ -62,18 +91,6 @@ class RsaDecrypter {
       throw FortisEncryptionException('Decryption failed: $e');
     }
   }
-
-  /// Decrypts raw ciphertext bytes and returns a UTF-8 string.
-  String decryptToString(Uint8List ciphertext) =>
-      utf8.decode(decrypt(ciphertext));
-
-  /// Decrypts a Base64-encoded ciphertext string and returns raw bytes.
-  Uint8List decryptFromBase64(String base64Ciphertext) =>
-      decrypt(base64Decode(base64Ciphertext));
-
-  /// Decrypts a Base64-encoded ciphertext string and returns a UTF-8 string.
-  String decryptFromBase64ToString(String base64Ciphertext) =>
-      utf8.decode(decryptFromBase64(base64Ciphertext));
 
   // ---------------------------------------------------------------------------
   // Padding implementations
