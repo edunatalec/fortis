@@ -65,10 +65,7 @@ void main() {
     test("recovers plaintext with key 'nonce'", () {
       final c = cipher(AesMode.gcm);
       final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
-      expect(
-        c.decrypt(payload.toMap(ivKey: 'nonce')),
-        equals(plaintextBytes),
-      );
+      expect(c.decrypt(payload.toMap(ivKey: 'nonce')), equals(plaintextBytes));
     });
 
     test("throws FortisConfigException when both 'iv' and 'nonce' present", () {
@@ -116,10 +113,7 @@ void main() {
       () {
         final c = cipher(AesMode.gcm);
         final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
-        expect(
-          c.decrypt(payload.toMap()),
-          equals(plaintextBytes),
-        );
+        expect(c.decrypt(payload.toMap()), equals(plaintextBytes));
       },
     );
 
@@ -233,10 +227,7 @@ void main() {
   group('decryptToString', () {
     test('recovers original UTF-8 string from Uint8List', () {
       final c = cipher(AesMode.gcm);
-      expect(
-        c.decryptToString(c.encrypt(plaintext)),
-        equals(plaintext),
-      );
+      expect(c.decryptToString(c.encrypt(plaintext)), equals(plaintext));
     });
 
     test('recovers original UTF-8 string from Base64 String', () {
@@ -250,10 +241,7 @@ void main() {
     test('recovers original UTF-8 string from Map<String, String>', () {
       final c = cipher(AesMode.gcm);
       final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
-      expect(
-        c.decryptToString(payload.toMap()),
-        equals(plaintext),
-      );
+      expect(c.decryptToString(payload.toMap()), equals(plaintext));
     });
 
     test('recovers original UTF-8 string from AesAuthPayload', () {
@@ -273,10 +261,7 @@ void main() {
       () {
         final c = cipher(AesMode.gcm);
         final payload = c.encryptToPayload(plaintext) as AesAuthPayload;
-        expect(
-          c.decryptToString(payload.toMap()),
-          equals(plaintext),
-        );
+        expect(c.decryptToString(payload.toMap()), equals(plaintext));
       },
     );
   });
@@ -321,10 +306,7 @@ void main() {
         () {
           final c = cipherWithAad(mode, aad);
           final ciphertext = c.encrypt(plaintext);
-          expect(
-            c.decryptToString(ciphertext),
-            equals(plaintext),
-          );
+          expect(c.decryptToString(ciphertext), equals(plaintext));
         },
       );
 
@@ -365,9 +347,7 @@ void main() {
       final ciphertext = c.encrypt(plaintext);
       final iv = base64Encode(ciphertext.sublist(0, 12));
       final tag = base64Encode(ciphertext.sublist(ciphertext.length - 16));
-      final data = base64Encode(
-        ciphertext.sublist(12, ciphertext.length - 16),
-      );
+      final data = base64Encode(ciphertext.sublist(12, ciphertext.length - 16));
 
       expect(
         c.decryptToString({'nonce': iv, 'data': data, 'tag': tag}),

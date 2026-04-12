@@ -109,8 +109,7 @@ final class AesStreamModeBuilder extends AesModeBuilder {
   AesStreamModeBuilder._({required super.mode}) : super._();
 
   @override
-  AesCipher cipher(FortisAesKey key) =>
-      AesCipher.stream(mode: _mode, key: key);
+  AesCipher cipher(FortisAesKey key) => AesCipher.stream(mode: _mode, key: key);
 }
 
 /// Builder for authenticated modes (GCM, CCM). Exposes [aad], [tagSize], and [nonceSize].

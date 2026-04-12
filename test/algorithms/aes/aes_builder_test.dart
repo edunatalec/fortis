@@ -129,10 +129,9 @@ void main() {
   group('nonceSize() — CCM round-trip', () {
     for (final size in [7, 11, 13]) {
       test('nonceSize($size) encrypt → decrypt recovers plaintext', () {
-        final c =
-            (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-                .nonceSize(size)
-                .cipher(key);
+        final c = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
+            .nonceSize(size)
+            .cipher(key);
         final ciphertext = c.encrypt('hello fortis');
         expect(c.decryptToString(ciphertext), equals('hello fortis'));
       });

@@ -101,18 +101,16 @@ Future<void> aesAuthenticatedExample() async {
 
   // GCM with AAD (Additional Authenticated Data)
   final aad = Uint8List.fromList(utf8.encode('additional-data'));
-  final gcmWithAad =
-      (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
-          .aad(aad)
-          .cipher(key);
+  final gcmWithAad = (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
+      .aad(aad)
+      .cipher(key);
   final aadCiphertext = gcmWithAad.encrypt('hello fortis');
   print('AES-GCM+AAD decrypted: ${gcmWithAad.decryptToString(aadCiphertext)}');
 
   // GCM with custom nonce size
-  final gcmCustom =
-      (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
-          .nonceSize(8)
-          .cipher(key);
+  final gcmCustom = (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
+      .nonceSize(8)
+      .cipher(key);
   final customCiphertext = gcmCustom.encrypt('hello fortis');
   print(
     'AES-GCM nonce=8 decrypted: ${gcmCustom.decryptToString(customCiphertext)}',
@@ -120,14 +118,11 @@ Future<void> aesAuthenticatedExample() async {
 
   // CCM with custom nonce sizes (7–13 bytes)
   for (final size in [7, 11, 13]) {
-    final ccmCustom =
-        (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-            .nonceSize(size)
-            .cipher(key);
+    final ccmCustom = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
+        .nonceSize(size)
+        .cipher(key);
     final ct = ccmCustom.encrypt('hello fortis');
-    print(
-      'AES-CCM nonce=$size decrypted: ${ccmCustom.decryptToString(ct)}',
-    );
+    print('AES-CCM nonce=$size decrypted: ${ccmCustom.decryptToString(ct)}');
   }
 }
 
@@ -188,15 +183,9 @@ Future<void> aesDecryptInputFormatsExample() async {
   final ciphertext = cipher.encrypt(plaintext);
   final iv = base64Encode(ciphertext.sublist(0, 12));
   final tag = base64Encode(ciphertext.sublist(ciphertext.length - 16));
-  final data = base64Encode(
-    ciphertext.sublist(12, ciphertext.length - 16),
-  );
+  final data = base64Encode(ciphertext.sublist(12, ciphertext.length - 16));
   print(
-    'Interop (.NET-style): ${cipher.decryptToString({
-      'nonce': iv,
-      'data': data,
-      'tag': tag,
-    })}',
+    'Interop (.NET-style): ${cipher.decryptToString({'nonce': iv, 'data': data, 'tag': tag})}',
   );
 }
 

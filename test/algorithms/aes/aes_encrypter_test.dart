@@ -104,31 +104,19 @@ void main() {
     });
 
     test('CBC mode returns AesPayload', () {
-      expect(
-        cipher(AesMode.cbc).encryptToPayload('hello'),
-        isA<AesPayload>(),
-      );
+      expect(cipher(AesMode.cbc).encryptToPayload('hello'), isA<AesPayload>());
     });
 
     test('CTR mode returns AesPayload', () {
-      expect(
-        cipher(AesMode.ctr).encryptToPayload('hello'),
-        isA<AesPayload>(),
-      );
+      expect(cipher(AesMode.ctr).encryptToPayload('hello'), isA<AesPayload>());
     });
 
     test('CFB mode returns AesPayload', () {
-      expect(
-        cipher(AesMode.cfb).encryptToPayload('hello'),
-        isA<AesPayload>(),
-      );
+      expect(cipher(AesMode.cfb).encryptToPayload('hello'), isA<AesPayload>());
     });
 
     test('OFB mode returns AesPayload', () {
-      expect(
-        cipher(AesMode.ofb).encryptToPayload('hello'),
-        isA<AesPayload>(),
-      );
+      expect(cipher(AesMode.ofb).encryptToPayload('hello'), isA<AesPayload>());
     });
 
     test('ECB mode throws FortisConfigException', () {
@@ -143,8 +131,7 @@ void main() {
     late AesAuthPayload payload;
 
     setUp(() {
-      payload =
-          cipher(AesMode.gcm).encryptToPayload('hello') as AesAuthPayload;
+      payload = cipher(AesMode.gcm).encryptToPayload('hello') as AesAuthPayload;
     });
 
     test('has non-empty iv', () => expect(payload.iv, isNotEmpty));
