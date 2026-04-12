@@ -106,7 +106,7 @@ Uint8List oaepV21Decrypt({
     error |= db[i] ^ lHash[i];
   }
 
-  // Locate the 0x01 separator after PS (constant-time search)
+  // Locate the 0x01 separator after PS (constant-time search — no early exit)
   var start = -1;
   for (var i = hLen; i < db.length; i++) {
     if (start == -1) {
@@ -114,7 +114,6 @@ Uint8List oaepV21Decrypt({
         start = i + 1;
       } else if (db[i] != 0x00) {
         error = 1; // invalid byte in PS
-        break;
       }
     }
   }

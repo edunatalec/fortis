@@ -277,7 +277,7 @@ class AesEncrypter {
   }
 
   Uint8List _encryptCcm(Uint8List plaintext, Uint8List? nonce) {
-    final iv = _resolveNonce(11, nonce, 'CCM'); // RFC 3610: 11-byte nonce
+    final iv = _resolveNonce(11, nonce, 'CCM'); // RFC 3610 permite 7–13 bytes; Fortis usa 11 bytes
     final cipher = CCMBlockCipher(AESEngine());
     cipher.init(
       true,
@@ -358,9 +358,7 @@ class AesEncrypter {
     AesPadding.pkcs7 => PKCS7Padding(),
     AesPadding.iso7816 => ISO7816d4Padding(),
     AesPadding.zeroPadding => _ZeroBytePadding(),
-    // noPadding: data is pre-validated; use PKCS7 which adds 0 effective padding
-    // when the data is already block-aligned (won't be reached for misaligned data).
-    AesPadding.noPadding => PKCS7Padding(),
+    AesPadding.noPadding => _NoPadding(),
   };
 
   Uint8List _randomBytes(int length) {
@@ -372,6 +370,28 @@ class AesEncrypter {
       Uint8List(prefix.length + data.length)
         ..setAll(0, prefix)
         ..setAll(prefix.length, data);
+}
+
+/// No-op padding implementation for [AesPadding.noPadding].
+///
+/// Data must already be block-aligned before encryption; this padding adds
+/// and removes nothing, ensuring interoperability with systems that expect
+/// raw unpadded AES output.
+class _NoPadding implements Padding {
+  @override
+  String get algorithmName => 'NoPadding';
+
+  @override
+  void init([CipherParameters? params]) {}
+
+  @override
+  int addPadding(Uint8List data, int offset) => 0;
+
+  @override
+  int padCount(Uint8List data) => 0;
+
+  @override
+  Uint8List process(bool pad, Uint8List data) => data;
 }
 
 /// Custom zero-byte padding implementation.
