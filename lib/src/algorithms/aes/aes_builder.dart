@@ -2,6 +2,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../core/fortis_crypto_warning.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import 'aes_decrypter.dart';
 import 'aes_encrypter.dart';
@@ -126,7 +127,7 @@ final class AesStreamModeBuilder extends AesModeBuilder {
       AesDecrypter.stream(mode: _mode, key: key);
 }
 
-/// Builder for authenticated modes (GCM, CCM). Exposes [aad] and [tagSize].
+/// Builder for authenticated modes (GCM, CCM). Exposes [aad], [tagSize], and [nonceSize].
 ///
 /// Obtain via [AesBuilder.mode] with [AesMode.gcm] or [AesMode.ccm].
 ///
@@ -134,19 +135,23 @@ final class AesStreamModeBuilder extends AesModeBuilder {
 /// ```dart
 /// final encrypter = Fortis.aes()
 ///     .mode(AesMode.gcm)
+///     .nonceSize(16)
 ///     .aad(Uint8List.fromList(utf8.encode('user-id-123')))
 ///     .encrypter(myKey);
 /// ```
 final class AesAuthModeBuilder extends AesModeBuilder {
   final Uint8List? _aad;
   final int _tagSizeBits;
+  final int _nonceSize;
 
   AesAuthModeBuilder._({
     required super.mode,
     Uint8List? aad,
     int tagSizeBits = 128,
+    int? nonceSize,
   }) : _aad = aad,
        _tagSizeBits = tagSizeBits,
+       _nonceSize = nonceSize ?? (mode == AesMode.gcm ? 12 : 11),
        super._();
 
   /// Sets the Additional Authenticated Data (AAD).
@@ -158,6 +163,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
     mode: _mode,
     aad: aad,
     tagSizeBits: _tagSizeBits,
+    nonceSize: _nonceSize,
   );
 
   /// Sets the authentication tag size in bits. Defaults to 128.
@@ -165,7 +171,58 @@ final class AesAuthModeBuilder extends AesModeBuilder {
     mode: _mode,
     aad: _aad,
     tagSizeBits: bits,
+    nonceSize: _nonceSize,
   );
+
+  /// Sets the IV or nonce size in bytes for GCM or CCM mode.
+  ///
+  /// **GCM** ([AesMode.gcm]): any size >= 1 is accepted. Per NIST SP 800-38D,
+  /// 96 bits (12 bytes) is the recommended size for performance and security.
+  /// A [FortisCryptoWarning] is logged if [size] exceeds 16 bytes.
+  /// Defaults to 12 bytes.
+  ///
+  /// **CCM** ([AesMode.ccm]): size must be between 7 and 13 bytes per RFC 3610
+  /// and NIST SP 800-38C. The nonce size and the message length field (L) are
+  /// related by L + N = 15. Larger nonces allow fewer unique values but support
+  /// larger messages. Defaults to 11 bytes (~4 GB max message size).
+  ///
+  /// | CCM nonce size | Max message size |
+  /// |----------------|-----------------|
+  /// | 7 bytes        | 2^64 bytes      |
+  /// | 11 bytes       | ~4 GB (default) |
+  /// | 13 bytes       | 65,535 bytes    |
+  ///
+  /// Throws [FortisConfigException] if [size] < 1 for GCM, or if [size] is
+  /// outside [7, 13] for CCM.
+  AesAuthModeBuilder nonceSize(int size) {
+    if (_mode == AesMode.gcm) {
+      if (size < 1) {
+        throw FortisConfigException(
+          'GCM IV size must be at least 1 byte, got $size.',
+        );
+      }
+      if (size > 16) {
+        FortisCryptoWarning.log(
+          'GCM IV size of $size bytes is unusual. '
+          'The NIST SP 800-38D recommended size is 12 bytes (96 bits). '
+          'Values above 16 bytes may indicate a design issue.',
+        );
+      }
+    } else {
+      // CCM: RFC 3610 and NIST SP 800-38C require nonce size in [7, 13].
+      if (size < 7 || size > 13) {
+        throw FortisConfigException(
+          'CCM nonce size must be between 7 and 13 bytes, got $size.',
+        );
+      }
+    }
+    return AesAuthModeBuilder._(
+      mode: _mode,
+      aad: _aad,
+      tagSizeBits: _tagSizeBits,
+      nonceSize: size,
+    );
+  }
 
   @override
   AesEncrypter encrypter(FortisAesKey key) => AesEncrypter.auth(
@@ -173,6 +230,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
     key: key,
     aad: _aad,
     tagSizeBits: _tagSizeBits,
+    nonceSize: _nonceSize,
   );
 
   @override
@@ -181,6 +239,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
     key: key,
     aad: _aad,
     tagSizeBits: _tagSizeBits,
+    nonceSize: _nonceSize,
   );
 }
 

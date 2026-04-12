@@ -28,22 +28,26 @@ import 'aes_payload.dart';
 /// tag is appended automatically. Developers never manage IVs or auth tags
 /// manually in the default flow.
 ///
-/// Modes CBC, CTR, CFB, and OFB use the term **IV** internally and in
-/// documentation. Modes GCM and CCM use the term **nonce**. They are
-/// equivalent concepts; the `iv` parameter in [encrypt] accepts both.
+/// Per NIST terminology:
+/// - CBC, CTR, CFB, OFB, and GCM use the term **IV** (initialization vector).
+/// - CCM uses the term **nonce**.
+/// The public [encrypt] parameter is always named `iv` regardless of mode.
 ///
 /// ## Buffer layouts
 ///
 /// - ECB: `[ciphertext]`
 /// - CBC / CTR / CFB / OFB: `[iv (16 bytes) | ciphertext]`
-/// - GCM: `[nonce (12 bytes) | ciphertext | tag (16 bytes)]`
-/// - CCM: `[nonce (11 bytes) | ciphertext | tag (16 bytes)]`
+/// - GCM: `[iv (default 12 bytes) | ciphertext | tag (16 bytes)]`
+/// - CCM: `[nonce (default 11 bytes) | ciphertext | tag (16 bytes)]`
+///
+/// GCM and CCM IV/nonce sizes are configurable via [AesAuthModeBuilder.nonceSize].
 class AesEncrypter {
   final AesMode _mode;
   final FortisAesKey _key;
   final AesPadding? _padding;
   final Uint8List? _aad;
   final int _tagSizeBits;
+  final int _nonceSize;
 
   /// Creates an encrypter for block modes (ECB, CBC).
   AesEncrypter.block({
@@ -54,7 +58,8 @@ class AesEncrypter {
        _key = key,
        _padding = padding,
        _aad = null,
-       _tagSizeBits = 128;
+       _tagSizeBits = 128,
+       _nonceSize = 0;
 
   /// Creates an encrypter for stream modes (CTR, CFB, OFB).
   AesEncrypter.stream({required AesMode mode, required FortisAesKey key})
@@ -62,7 +67,8 @@ class AesEncrypter {
       _key = key,
       _padding = null,
       _aad = null,
-      _tagSizeBits = 128;
+      _tagSizeBits = 128,
+      _nonceSize = 0;
 
   /// Creates an encrypter for authenticated modes (GCM, CCM).
   AesEncrypter.auth({
@@ -70,11 +76,13 @@ class AesEncrypter {
     required FortisAesKey key,
     Uint8List? aad,
     int tagSizeBits = 128,
+    int? nonceSize,
   }) : _mode = mode,
        _key = key,
        _padding = null,
        _aad = aad,
-       _tagSizeBits = tagSizeBits;
+       _tagSizeBits = tagSizeBits,
+       _nonceSize = nonceSize ?? (mode == AesMode.gcm ? 12 : 11);
 
   /// Encrypts [plaintext] and returns the combined buffer as raw bytes.
   ///
@@ -82,21 +90,35 @@ class AesEncrypter {
   /// - [Uint8List]: raw bytes, encrypted as-is.
   /// - [String]: UTF-8 encoded before encryption.
   ///
-  /// The optional [iv] parameter allows providing a specific initialization
-  /// vector or nonce. If omitted, a secure random IV/nonce is generated
-  /// automatically. The size must match the mode:
-  /// - ECB: iv is ignored (ECB has no IV)
-  /// - CBC, CTR, CFB, OFB: 16 bytes
-  /// - GCM: 12 bytes
-  /// - CCM: 11 bytes
+  /// The optional [iv] parameter provides the initialization vector or nonce.
+  ///
+  /// Behavior by mode:
+  /// - **ECB**: ignored (ECB has no IV).
+  /// - **CBC**: initialization vector — must be exactly 16 bytes. Must be
+  ///   unpredictable (random). Reference: NIST SP 800-38A.
+  /// - **CFB**: initialization vector — must be exactly 16 bytes. Must be
+  ///   unpredictable (random). Reference: NIST SP 800-38A.
+  /// - **OFB**: initialization vector — must be exactly 16 bytes. Must be
+  ///   unique per encryption. Reference: NIST SP 800-38A.
+  /// - **CTR**: initialization vector — must be exactly 16 bytes. Must be
+  ///   unique per encryption. Reference: NIST SP 800-38A.
+  /// - **GCM**: initialization vector — size configured via
+  ///   [AesAuthModeBuilder.nonceSize], default 12 bytes. Must be unique
+  ///   per encryption. Reference: NIST SP 800-38D.
+  /// - **CCM**: nonce — size configured via [AesAuthModeBuilder.nonceSize],
+  ///   default 11 bytes. Must be unique per encryption.
+  ///   Reference: NIST SP 800-38C.
+  ///
+  /// If omitted, a cryptographically secure random value of the correct size
+  /// is generated automatically. This is the recommended behavior.
   ///
   /// Throws [FortisConfigException] if [plaintext] is not a [String] or
   /// [Uint8List], or if the provided [iv] has the wrong size for the mode.
   ///
   /// Buffer layout by mode:
-  /// - GCM/CCM: [ iv | ciphertext | tag ]
-  /// - CBC/CTR/CFB/OFB: [ iv | ciphertext ]
-  /// - ECB: [ ciphertext ]
+  /// - GCM/CCM: `[ iv | ciphertext | tag ]`
+  /// - CBC/CTR/CFB/OFB: `[ iv | ciphertext ]`
+  /// - ECB: `[ ciphertext ]`
   Uint8List encrypt(Object plaintext, {Uint8List? iv}) {
     return _encryptBytes(_toBytes(plaintext), iv: iv);
   }
@@ -128,7 +150,7 @@ class AesEncrypter {
     final buffer = encrypt(plaintext, iv: iv);
 
     if (_mode == AesMode.gcm || _mode == AesMode.ccm) {
-      final nonceSize = _mode == AesMode.gcm ? 12 : 11;
+      final nonceSize = _nonceSize;
       const tagSize = 16;
       final ivB64 = base64Encode(buffer.sublist(0, nonceSize));
       final tag = base64Encode(buffer.sublist(buffer.length - tagSize));
@@ -150,15 +172,12 @@ class AesEncrypter {
 
   /// Encrypts [plaintext] bytes and returns ciphertext with the IV/nonce prepended.
   ///
-  /// The optional [iv] parameter allows callers to supply a specific
-  /// IV or nonce — useful for interoperability with external systems that
-  /// require a deterministic nonce. When omitted, a cryptographically random
-  /// value is generated automatically.
+  /// The optional [iv] parameter allows callers to supply a specific IV or nonce —
+  /// useful for interoperability with external systems that require a deterministic
+  /// value. When omitted, a cryptographically random value is generated automatically.
   ///
-  /// - For GCM the nonce must be exactly 12 bytes.
-  /// - For CCM the nonce must be exactly 11 bytes.
-  /// - For CBC, CTR, CFB, and OFB the IV must be exactly 16 bytes.
-  /// - ECB does not use a nonce; passing one throws [FortisConfigException].
+  /// The required IV/nonce size is determined by the mode and the configured nonce
+  /// size (see [AesAuthModeBuilder.nonceSize]).
   ///
   /// Throws [FortisConfigException] if:
   /// - [AesPadding.noPadding] is used with data that is not a multiple of 16.
@@ -190,9 +209,9 @@ class AesEncrypter {
   // Block modes
   // ──────────────────────────────────────────────
 
-  Uint8List _encryptEcb(Uint8List plaintext, Uint8List? nonce) {
-    if (nonce != null) {
-      throw FortisConfigException('ECB mode does not use a nonce/IV.');
+  Uint8List _encryptEcb(Uint8List plaintext, Uint8List? iv) {
+    if (iv != null) {
+      throw FortisConfigException('ECB mode does not use an IV.');
     }
     final padding = _padding!;
     if (padding == AesPadding.noPadding && plaintext.length % 16 != 0) {
@@ -209,7 +228,7 @@ class AesEncrypter {
     return cipher.process(plaintext);
   }
 
-  Uint8List _encryptCbc(Uint8List plaintext, Uint8List? nonce) {
+  Uint8List _encryptCbc(Uint8List plaintext, Uint8List? iv) {
     final padding = _padding!;
     if (padding == AesPadding.noPadding && plaintext.length % 16 != 0) {
       throw FortisConfigException(
@@ -217,78 +236,78 @@ class AesEncrypter {
         'got ${plaintext.length}.',
       );
     }
-    final iv = _resolveNonce(16, nonce, 'CBC');
+    final resolvedIv = _resolveIv(16, iv, 'CBC');
     final cipher = _paddedBlockCipher(padding, CBCBlockCipher(AESEngine()));
     cipher.init(
       true,
       PaddedBlockCipherParameters(
-        ParametersWithIV(KeyParameter(_key.toBytes()), iv),
+        ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv),
         null,
       ),
     );
-    return _prepend(iv, cipher.process(plaintext));
+    return _prepend(resolvedIv, cipher.process(plaintext));
   }
 
   // ──────────────────────────────────────────────
   // Stream modes
   // ──────────────────────────────────────────────
 
-  Uint8List _encryptCtr(Uint8List plaintext, Uint8List? nonce) {
-    final iv = _resolveNonce(16, nonce, 'CTR');
+  Uint8List _encryptCtr(Uint8List plaintext, Uint8List? iv) {
+    final resolvedIv = _resolveIv(16, iv, 'CTR');
     final cipher = CTRStreamCipher(AESEngine());
-    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
+    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv));
     final ciphertext = Uint8List(plaintext.length);
     cipher.processBytes(plaintext, 0, plaintext.length, ciphertext, 0);
-    return _prepend(iv, ciphertext);
+    return _prepend(resolvedIv, ciphertext);
   }
 
-  Uint8List _encryptCfb(Uint8List plaintext, Uint8List? nonce) {
-    final iv = _resolveNonce(16, nonce, 'CFB');
+  Uint8List _encryptCfb(Uint8List plaintext, Uint8List? iv) {
+    final resolvedIv = _resolveIv(16, iv, 'CFB');
     final cipher = CFBBlockCipher(AESEngine(), 16);
-    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
-    return _prepend(iv, _processStreamBlockCipher(cipher, plaintext));
+    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv));
+    return _prepend(resolvedIv, _processStreamBlockCipher(cipher, plaintext));
   }
 
-  Uint8List _encryptOfb(Uint8List plaintext, Uint8List? nonce) {
-    final iv = _resolveNonce(16, nonce, 'OFB');
+  Uint8List _encryptOfb(Uint8List plaintext, Uint8List? iv) {
+    final resolvedIv = _resolveIv(16, iv, 'OFB');
     final cipher = OFBBlockCipher(AESEngine(), 16);
-    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
-    return _prepend(iv, _processStreamBlockCipher(cipher, plaintext));
+    cipher.init(true, ParametersWithIV(KeyParameter(_key.toBytes()), resolvedIv));
+    return _prepend(resolvedIv, _processStreamBlockCipher(cipher, plaintext));
   }
 
   // ──────────────────────────────────────────────
   // Authenticated modes
   // ──────────────────────────────────────────────
 
-  Uint8List _encryptGcm(Uint8List plaintext, Uint8List? nonce) {
-    final iv = _resolveNonce(12, nonce, 'GCM'); // NIST SP 800-38D: 96 bits
+  Uint8List _encryptGcm(Uint8List plaintext, Uint8List? iv) {
+    final resolvedIv = _resolveIv(_nonceSize, iv, 'GCM'); // NIST SP 800-38D
     final cipher = GCMBlockCipher(AESEngine());
     cipher.init(
       true,
       AEADParameters(
         KeyParameter(_key.toBytes()),
         _tagSizeBits,
-        iv,
+        resolvedIv,
         _aad ?? Uint8List(0),
       ),
     );
     // process() returns ciphertext || auth_tag (PointyCastle appends the tag)
-    return _prepend(iv, cipher.process(plaintext));
+    return _prepend(resolvedIv, cipher.process(plaintext));
   }
 
-  Uint8List _encryptCcm(Uint8List plaintext, Uint8List? nonce) {
-    final iv = _resolveNonce(11, nonce, 'CCM'); // RFC 3610 permite 7–13 bytes; Fortis usa 11 bytes
+  Uint8List _encryptCcm(Uint8List plaintext, Uint8List? iv) {
+    final nonce = _resolveNonce(_nonceSize, iv, 'CCM'); // NIST SP 800-38C
     final cipher = CCMBlockCipher(AESEngine());
     cipher.init(
       true,
       AEADParameters(
         KeyParameter(_key.toBytes()),
         _tagSizeBits,
-        iv,
+        nonce,
         _aad ?? Uint8List(0),
       ),
     );
-    return _prepend(iv, cipher.process(plaintext));
+    return _prepend(nonce, cipher.process(plaintext));
   }
 
   // ──────────────────────────────────────────────
@@ -310,10 +329,23 @@ class AesEncrypter {
     );
   }
 
-  /// Resolves the IV/nonce to use.
+  /// Resolves the initialization vector (IV) for block/stream/GCM modes.
   ///
   /// If [provided] is non-null, validates its size against [expectedSize].
-  /// If null, generates a random byte array of [expectedSize].
+  /// If null, generates a cryptographically secure random byte array of [expectedSize].
+  Uint8List _resolveIv(int expectedSize, Uint8List? provided, String mode) {
+    if (provided != null && provided.length != expectedSize) {
+      throw FortisConfigException(
+        '$mode IV must be $expectedSize bytes, got ${provided.length}.',
+      );
+    }
+    return provided ?? _randomBytes(expectedSize);
+  }
+
+  /// Resolves the nonce for CCM mode.
+  ///
+  /// If [provided] is non-null, validates its size against [expectedSize].
+  /// If null, generates a cryptographically secure random byte array of [expectedSize].
   Uint8List _resolveNonce(int expectedSize, Uint8List? provided, String mode) {
     if (provided != null && provided.length != expectedSize) {
       throw FortisConfigException(

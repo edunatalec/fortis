@@ -30,14 +30,18 @@ import 'aes_payload.dart';
 ///
 /// - ECB: `[ciphertext]`
 /// - CBC / CTR / CFB / OFB: `[iv (16 bytes) | ciphertext]`
-/// - GCM: `[nonce (12 bytes) | ciphertext | tag (16 bytes)]`
-/// - CCM: `[nonce (11 bytes) | ciphertext | tag (16 bytes)]`
+/// - GCM: `[iv (default 12 bytes) | ciphertext | tag (16 bytes)]`
+/// - CCM: `[nonce (default 11 bytes) | ciphertext | tag (16 bytes)]`
+///
+/// GCM and CCM IV/nonce sizes are configurable via [AesAuthModeBuilder.nonceSize].
+/// The decrypter must be configured with the same nonce size used during encryption.
 class AesDecrypter {
   final AesMode _mode;
   final FortisAesKey _key;
   final AesPadding? _padding;
   final Uint8List? _aad;
   final int _tagSizeBits;
+  final int _nonceSize;
 
   /// Creates a decrypter for block modes (ECB, CBC).
   AesDecrypter.block({
@@ -48,7 +52,8 @@ class AesDecrypter {
        _key = key,
        _padding = padding,
        _aad = null,
-       _tagSizeBits = 128;
+       _tagSizeBits = 128,
+       _nonceSize = 0;
 
   /// Creates a decrypter for stream modes (CTR, CFB, OFB).
   AesDecrypter.stream({required AesMode mode, required FortisAesKey key})
@@ -56,7 +61,8 @@ class AesDecrypter {
       _key = key,
       _padding = null,
       _aad = null,
-      _tagSizeBits = 128;
+      _tagSizeBits = 128,
+      _nonceSize = 0;
 
   /// Creates a decrypter for authenticated modes (GCM, CCM).
   AesDecrypter.auth({
@@ -64,11 +70,13 @@ class AesDecrypter {
     required FortisAesKey key,
     Uint8List? aad,
     int tagSizeBits = 128,
+    int? nonceSize,
   }) : _mode = mode,
        _key = key,
        _padding = null,
        _aad = aad,
-       _tagSizeBits = tagSizeBits;
+       _tagSizeBits = tagSizeBits,
+       _nonceSize = nonceSize ?? (mode == AesMode.gcm ? 12 : 11);
 
   /// Decrypts [input] and returns the plaintext as raw bytes.
   ///
@@ -305,14 +313,14 @@ class AesDecrypter {
   // ──────────────────────────────────────────────
 
   Uint8List _decryptGcm(Uint8List ciphertext) {
-    if (ciphertext.length < 12) {
+    if (ciphertext.length < _nonceSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for GCM mode '
-        '(expected at least 12 bytes for nonce, got ${ciphertext.length}).',
+        '(expected at least $_nonceSize bytes for IV, got ${ciphertext.length}).',
       );
     }
-    final iv = ciphertext.sublist(0, 12); // NIST SP 800-38D: 96 bits (12 bytes)
-    final body = ciphertext.sublist(12); // ciphertext + auth tag
+    final iv = ciphertext.sublist(0, _nonceSize); // NIST SP 800-38D
+    final body = ciphertext.sublist(_nonceSize); // ciphertext + auth tag
     final cipher = GCMBlockCipher(AESEngine());
     cipher.init(
       false,
@@ -334,14 +342,14 @@ class AesDecrypter {
   }
 
   Uint8List _decryptCcm(Uint8List ciphertext) {
-    if (ciphertext.length < 11) {
+    if (ciphertext.length < _nonceSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for CCM mode '
-        '(expected at least 11 bytes for nonce, got ${ciphertext.length}).',
+        '(expected at least $_nonceSize bytes for nonce, got ${ciphertext.length}).',
       );
     }
-    final nonce = ciphertext.sublist(0, 11); // RFC 3610 permite 7–13 bytes; Fortis usa 11 bytes
-    final body = ciphertext.sublist(11);
+    final nonce = ciphertext.sublist(0, _nonceSize); // NIST SP 800-38C
+    final body = ciphertext.sublist(_nonceSize);
     final cipher = CCMBlockCipher(AESEngine());
     cipher.init(
       false,
