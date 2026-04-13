@@ -19,36 +19,34 @@ import 'ecdh_public_key.dart';
 /// // Generate a key pair
 /// final pair = await Fortis.ecdh().curve(EcdhCurve.p256).generateKeyPair();
 ///
-/// // Derive an AES key
-/// final aesKey = Fortis.ecdh()
+/// // Derive a key
+/// final key = Fortis.ecdh()
 ///     .curve(EcdhCurve.p256)
-///     .aesKeySize(256)
+///     .keySize(256)
 ///     .keyDerivation(myPrivateKey)
 ///     .deriveKey(theirPublicKey);
 /// ```
 class EcdhBuilder {
   final EcdhCurve _curve;
-  final int _aesKeySize;
+  final int _keySize;
 
-  /// Creates an [EcdhBuilder] with optional [curveParam] and [aesKeySizeParam].
+  /// Creates an [EcdhBuilder] with optional [curveParam] and [keySizeParam].
   ///
   /// Users should call [Fortis.ecdh] rather than constructing a builder
   /// directly.
-  EcdhBuilder({
-    EcdhCurve curveParam = EcdhCurve.p256,
-    int aesKeySizeParam = 256,
-  }) : _curve = curveParam,
-       _aesKeySize = aesKeySizeParam;
+  EcdhBuilder({EcdhCurve curveParam = EcdhCurve.p256, int keySizeParam = 256})
+    : _curve = curveParam,
+      _keySize = keySizeParam;
 
   /// Sets the elliptic curve. Defaults to [EcdhCurve.p256].
   EcdhBuilder curve(EcdhCurve curve) =>
-      EcdhBuilder(curveParam: curve, aesKeySizeParam: _aesKeySize);
+      EcdhBuilder(curveParam: curve, keySizeParam: _keySize);
 
-  /// Sets the AES key size (in bits) for [EcdhKeyDerivation.deriveKey].
+  /// Sets the derived key size in bits for [EcdhKeyDerivation.deriveKey].
   ///
-  /// Must be 128, 192, or 256. Defaults to 256.
-  EcdhBuilder aesKeySize(int size) =>
-      EcdhBuilder(curveParam: _curve, aesKeySizeParam: size);
+  /// Must be a positive multiple of 8. Defaults to 256.
+  EcdhBuilder keySize(int size) =>
+      EcdhBuilder(curveParam: _curve, keySizeParam: size);
 
   /// Generates a new ECDH key pair asynchronously in a separate [Isolate].
   Future<FortisEcdhKeyPair> generateKeyPair() async {
@@ -57,10 +55,10 @@ class EcdhBuilder {
 
   /// Creates an [EcdhKeyDerivation] for key agreement with [privateKey].
   ///
-  /// Throws [FortisConfigException] if [aesKeySize] is invalid.
+  /// Throws [FortisConfigException] if [keySize] is invalid.
   EcdhKeyDerivation keyDerivation(FortisEcdhPrivateKey privateKey) {
-    _validateAesKeySize(_aesKeySize);
-    return EcdhKeyDerivation(privateKey: privateKey, aesKeySize: _aesKeySize);
+    _validateKeySize(_keySize);
+    return EcdhKeyDerivation(privateKey: privateKey, keySize: _keySize);
   }
 }
 
@@ -68,10 +66,10 @@ class EcdhBuilder {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-void _validateAesKeySize(int size) {
-  if (size != 128 && size != 192 && size != 256) {
+void _validateKeySize(int size) {
+  if (size <= 0 || size % 8 != 0) {
     throw FortisConfigException(
-      'aesKeySize must be 128, 192, or 256 bits, got $size.',
+      'keySize must be a positive multiple of 8 bits, got $size.',
     );
   }
 }

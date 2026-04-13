@@ -28,19 +28,27 @@ void main() {
   });
 
   group('keyDerivation()', () {
-    test('throws FortisConfigException for invalid AES key size', () async {
+    test('throws FortisConfigException for invalid key size', () async {
       final pair = await Fortis.ecdh().generateKeyPair();
       expect(
-        () => Fortis.ecdh().aesKeySize(512).keyDerivation(pair.privateKey),
+        () => Fortis.ecdh().keySize(0).keyDerivation(pair.privateKey),
+        throwsA(isA<FortisConfigException>()),
+      );
+      expect(
+        () => Fortis.ecdh().keySize(7).keyDerivation(pair.privateKey),
+        throwsA(isA<FortisConfigException>()),
+      );
+      expect(
+        () => Fortis.ecdh().keySize(-8).keyDerivation(pair.privateKey),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
-    test('accepts valid AES key sizes (128, 192, 256)', () async {
+    test('accepts valid key sizes', () async {
       final pair = await Fortis.ecdh().generateKeyPair();
-      for (final size in [128, 192, 256]) {
+      for (final size in [8, 128, 192, 256, 512]) {
         expect(
-          () => Fortis.ecdh().aesKeySize(size).keyDerivation(pair.privateKey),
+          () => Fortis.ecdh().keySize(size).keyDerivation(pair.privateKey),
           returnsNormally,
         );
       }
@@ -54,9 +62,9 @@ void main() {
       expect(identical(b1, b2), isFalse);
     });
 
-    test('aesKeySize() returns a new builder instance', () {
+    test('keySize() returns a new builder instance', () {
       final b1 = Fortis.ecdh();
-      final b2 = b1.aesKeySize(128);
+      final b2 = b1.keySize(128);
       expect(identical(b1, b2), isFalse);
     });
   });

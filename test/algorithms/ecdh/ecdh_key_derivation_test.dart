@@ -75,23 +75,24 @@ void main() {
   });
 
   group('deriveKey()', () {
-    test('returns a valid FortisAesKey with default size (256)', () {
+    test('returns Uint8List with default size (256 bits = 32 bytes)', () {
       final derivation = Fortis.ecdh().keyDerivation(alice.privateKey);
-      final aesKey = derivation.deriveKey(bob.publicKey);
-      expect(aesKey.keySize, 256);
+      final key = derivation.deriveKey(bob.publicKey);
+      expect(key, isA<Uint8List>());
+      expect(key.length, 32);
     });
 
     for (final size in [128, 192, 256]) {
-      test('returns AES-$size key', () {
+      test('returns $size-bit key (${size ~/ 8} bytes)', () {
         final derivation = Fortis.ecdh()
-            .aesKeySize(size)
+            .keySize(size)
             .keyDerivation(alice.privateKey);
-        final aesKey = derivation.deriveKey(bob.publicKey);
-        expect(aesKey.keySize, size);
+        final key = derivation.deriveKey(bob.publicKey);
+        expect(key.length, size ~/ 8);
       });
     }
 
-    test('both sides derive the same AES key', () {
+    test('both sides derive the same key', () {
       final aliceKey = Fortis.ecdh()
           .keyDerivation(alice.privateKey)
           .deriveKey(bob.publicKey);
@@ -99,7 +100,7 @@ void main() {
           .keyDerivation(bob.privateKey)
           .deriveKey(alice.publicKey);
 
-      expect(aliceKey.toBase64(), equals(bobKey.toBase64()));
+      expect(aliceKey, equals(bobKey));
     });
 
     test('different salt produces different keys', () {
@@ -112,7 +113,7 @@ void main() {
         bob.publicKey,
         salt: Uint8List.fromList([4, 5, 6]),
       );
-      expect(key1.toBase64(), isNot(equals(key2.toBase64())));
+      expect(key1, isNot(equals(key2)));
     });
 
     test('different info produces different keys', () {
@@ -125,30 +126,104 @@ void main() {
         bob.publicKey,
         info: Uint8List.fromList('context-b'.codeUnits),
       );
-      expect(key1.toBase64(), isNot(equals(key2.toBase64())));
+      expect(key1, isNot(equals(key2)));
     });
   });
 
-  group('hkdfDeriveKey()', () {
+  group('deriveAesKey()', () {
+    test('returns a valid FortisAesKey with default size (256)', () {
+      final derivation = Fortis.ecdh().keyDerivation(alice.privateKey);
+      final aesKey = derivation.deriveAesKey(bob.publicKey);
+      expect(aesKey.keySize, 256);
+    });
+
+    for (final size in [128, 192, 256]) {
+      test('returns AES-$size key', () {
+        final derivation = Fortis.ecdh()
+            .keySize(size)
+            .keyDerivation(alice.privateKey);
+        final aesKey = derivation.deriveAesKey(bob.publicKey);
+        expect(aesKey.keySize, size);
+      });
+    }
+
+    test('both sides derive the same AES key', () {
+      final aliceKey = Fortis.ecdh()
+          .keyDerivation(alice.privateKey)
+          .deriveAesKey(bob.publicKey);
+      final bobKey = Fortis.ecdh()
+          .keyDerivation(bob.privateKey)
+          .deriveAesKey(alice.publicKey);
+
+      expect(aliceKey.toBase64(), equals(bobKey.toBase64()));
+    });
+
+    test('throws FortisConfigException for non-AES key size', () {
+      final derivation = Fortis.ecdh()
+          .keySize(512)
+          .keyDerivation(alice.privateKey);
+      expect(
+        () => derivation.deriveAesKey(bob.publicKey),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+  });
+
+  group('hkdf()', () {
     test('same input produces same output (deterministic)', () {
       final secret = Uint8List.fromList(List.filled(32, 0xAB));
-      final key1 = EcdhKeyDerivation.hkdfDeriveKey(secret);
-      final key2 = EcdhKeyDerivation.hkdfDeriveKey(secret);
+      final key1 = EcdhKeyDerivation.hkdf(secret);
+      final key2 = EcdhKeyDerivation.hkdf(secret);
+      expect(key1, equals(key2));
+    });
+
+    test('different shared secrets produce different keys', () {
+      final secret1 = Uint8List.fromList(List.filled(32, 0xAB));
+      final secret2 = Uint8List.fromList(List.filled(32, 0xCD));
+      final key1 = EcdhKeyDerivation.hkdf(secret1);
+      final key2 = EcdhKeyDerivation.hkdf(secret2);
+      expect(key1, isNot(equals(key2)));
+    });
+
+    test('returns Uint8List with correct length', () {
+      final secret = Uint8List.fromList(List.filled(32, 0xAB));
+      final key = EcdhKeyDerivation.hkdf(secret, keySize: 128);
+      expect(key.length, 16);
+    });
+
+    test('throws FortisConfigException for invalid key size', () {
+      final secret = Uint8List.fromList(List.filled(32, 0xAB));
+      expect(
+        () => EcdhKeyDerivation.hkdf(secret, keySize: 0),
+        throwsA(isA<FortisConfigException>()),
+      );
+      expect(
+        () => EcdhKeyDerivation.hkdf(secret, keySize: 7),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+  });
+
+  group('hkdfDeriveAesKey()', () {
+    test('same input produces same output (deterministic)', () {
+      final secret = Uint8List.fromList(List.filled(32, 0xAB));
+      final key1 = EcdhKeyDerivation.hkdfDeriveAesKey(secret);
+      final key2 = EcdhKeyDerivation.hkdfDeriveAesKey(secret);
       expect(key1.toBase64(), equals(key2.toBase64()));
     });
 
     test('different shared secrets produce different keys', () {
       final secret1 = Uint8List.fromList(List.filled(32, 0xAB));
       final secret2 = Uint8List.fromList(List.filled(32, 0xCD));
-      final key1 = EcdhKeyDerivation.hkdfDeriveKey(secret1);
-      final key2 = EcdhKeyDerivation.hkdfDeriveKey(secret2);
+      final key1 = EcdhKeyDerivation.hkdfDeriveAesKey(secret1);
+      final key2 = EcdhKeyDerivation.hkdfDeriveAesKey(secret2);
       expect(key1.toBase64(), isNot(equals(key2.toBase64())));
     });
 
-    test('throws FortisConfigException for invalid AES key size', () {
+    test('throws FortisConfigException for non-AES key size', () {
       final secret = Uint8List.fromList(List.filled(32, 0xAB));
       expect(
-        () => EcdhKeyDerivation.hkdfDeriveKey(secret, aesKeySize: 64),
+        () => EcdhKeyDerivation.hkdfDeriveAesKey(secret, keySize: 64),
         throwsA(isA<FortisConfigException>()),
       );
     });
@@ -156,7 +231,7 @@ void main() {
     for (final size in [128, 192, 256]) {
       test('produces AES-$size key', () {
         final secret = Uint8List.fromList(List.filled(32, 0xAB));
-        final key = EcdhKeyDerivation.hkdfDeriveKey(secret, aesKeySize: size);
+        final key = EcdhKeyDerivation.hkdfDeriveAesKey(secret, keySize: size);
         expect(key.keySize, size);
       });
     }
@@ -166,10 +241,10 @@ void main() {
     test('Alice encrypts with AES, Bob decrypts', () {
       final aliceAesKey = Fortis.ecdh()
           .keyDerivation(alice.privateKey)
-          .deriveKey(bob.publicKey);
+          .deriveAesKey(bob.publicKey);
       final bobAesKey = Fortis.ecdh()
           .keyDerivation(bob.privateKey)
-          .deriveKey(alice.publicKey);
+          .deriveAesKey(alice.publicKey);
 
       final cipher = Fortis.aes().mode(AesMode.gcm).cipher(aliceAesKey);
       final plaintext = 'my-secret-password-123';
