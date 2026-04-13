@@ -1,6 +1,7 @@
 // Internal imports — builder return types for Fortis factory methods
 import 'src/algorithms/rsa/rsa_builder.dart';
 import 'src/algorithms/aes/aes_builder.dart';
+import 'src/algorithms/ecdh/ecdh_builder.dart';
 
 // Exceptions
 export 'src/exceptions/fortis_exception.dart';
@@ -42,6 +43,20 @@ export 'src/algorithms/aes/aes_payload.dart';
 export 'src/algorithms/aes/aes_builder.dart';
 export 'src/algorithms/aes/aes_cipher.dart';
 
+// ECDH enums
+export 'src/algorithms/ecdh/ecdh_curve.dart';
+export 'src/algorithms/ecdh/ecdh_public_key_format.dart';
+export 'src/algorithms/ecdh/ecdh_private_key_format.dart';
+
+// ECDH keys
+export 'src/algorithms/ecdh/ecdh_key_pair.dart';
+export 'src/algorithms/ecdh/ecdh_public_key.dart';
+export 'src/algorithms/ecdh/ecdh_private_key.dart';
+
+// ECDH builder + key derivation
+export 'src/algorithms/ecdh/ecdh_builder.dart';
+export 'src/algorithms/ecdh/ecdh_key_derivation.dart';
+
 /// Entry point for the Fortis cryptography library.
 ///
 /// ```dart
@@ -72,4 +87,7 @@ sealed class Fortis {
 
   /// Creates a new [AesBuilder] for AES key generation and encryption.
   static AesBuilder aes() => AesBuilder();
+
+  /// Creates a new [EcdhBuilder] for ECDH key agreement and key derivation.
+  static EcdhBuilder ecdh() => EcdhBuilder();
 }
