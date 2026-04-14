@@ -1,6 +1,7 @@
 # Fortis
 
 [![pub package](https://img.shields.io/pub/v/fortis.svg)](https://pub.dev/packages/fortis)
+[![package publisher](https://img.shields.io/pub/publisher/validart.svg)](https://pub.dev/packages/validart/publisher)
 
 High-level cryptography for Dart. Fluent builder API with compile-time safety, sane defaults, and seamless cross-platform interoperability.
 
