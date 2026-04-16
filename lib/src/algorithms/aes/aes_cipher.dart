@@ -791,8 +791,12 @@ class _NoPadding implements Padding {
   @override
   int padCount(Uint8List data) => 0;
 
+  // Required by the Padding interface but never invoked by PaddedBlockCipherImpl,
+  // which uses addPadding/padCount instead. Throws loudly if some future
+  // PointyCastle release starts calling it.
   @override
-  Uint8List process(bool pad, Uint8List data) => data;
+  Uint8List process(bool pad, Uint8List data) =>
+      throw UnsupportedError('_NoPadding.process is not used by Fortis.');
 }
 
 /// Custom zero-byte padding implementation.
@@ -827,19 +831,10 @@ class _ZeroBytePadding implements Padding {
     return data.length - 1 - i;
   }
 
+  // Required by the Padding interface but never invoked by PaddedBlockCipherImpl,
+  // which uses addPadding/padCount instead. Throws loudly if some future
+  // PointyCastle release starts calling it.
   @override
-  Uint8List process(bool pad, Uint8List data) {
-    if (pad) {
-      const blockSize = 16;
-      final padLen = blockSize - (data.length % blockSize);
-      final out = Uint8List(data.length + padLen);
-
-      out.setAll(0, data);
-
-      return out; // zero bytes are already the default
-    } else {
-      final padLen = padCount(data);
-      return data.sublist(0, data.length - padLen);
-    }
-  }
+  Uint8List process(bool pad, Uint8List data) =>
+      throw UnsupportedError('_ZeroBytePadding.process is not used by Fortis.');
 }
