@@ -143,7 +143,7 @@ sealed class AesCipher {
     }
 
     if (input is String) {
-      return _decryptBytes(base64Decode(input));
+      return _decryptBytes(_decodeBase64(input, 'ciphertext'));
     }
 
     if (input is Map<String, String>) {
@@ -266,16 +266,25 @@ sealed class AesCipher {
       );
     }
 
-    final ivBytes = base64Decode(hasIv ? map['iv']! : map['nonce']!);
-    final dataBytes = base64Decode(map['data']!);
+    final ivKey = hasIv ? 'iv' : 'nonce';
+    final ivBytes = _decodeBase64(map[ivKey]!, ivKey);
+    final dataBytes = _decodeBase64(map['data']!, 'data');
 
     if (isAuth) {
-      final tagBytes = base64Decode(map['tag']!);
+      final tagBytes = _decodeBase64(map['tag']!, 'tag');
 
       return Uint8List.fromList([...ivBytes, ...dataBytes, ...tagBytes]);
     }
 
     return Uint8List.fromList([...ivBytes, ...dataBytes]);
+  }
+
+  Uint8List _decodeBase64(String input, String field) {
+    try {
+      return base64Decode(input);
+    } on FormatException catch (e) {
+      throw FortisConfigException("Invalid Base64 in '$field': ${e.message}");
+    }
   }
 
   Uint8List _encryptEcb(Uint8List plaintext, Uint8List? iv) {
@@ -672,15 +681,41 @@ final class AesStandardCipher extends AesCipher {
   ///
   /// [padding] is required for [AesMode.cbc] and must be `null` for stream
   /// modes ([AesMode.ctr], [AesMode.cfb], [AesMode.ofb]).
-  AesStandardCipher({required super.mode, required super.key, super.padding})
-    : assert(
-        mode == AesMode.cbc ||
-            mode == AesMode.ctr ||
-            mode == AesMode.cfb ||
-            mode == AesMode.ofb,
-        'AesStandardCipher only supports CBC, CTR, CFB, or OFB',
-      ),
-      super._();
+  ///
+  /// Throws [FortisConfigException] if [mode] is not one of CBC/CTR/CFB/OFB,
+  /// if CBC is used without a [padding], or if a stream mode is combined
+  /// with a non-null [padding].
+  factory AesStandardCipher({
+    required AesMode mode,
+    required FortisAesKey key,
+    AesPadding? padding,
+  }) {
+    const streamModes = {AesMode.ctr, AesMode.cfb, AesMode.ofb};
+    if (mode != AesMode.cbc && !streamModes.contains(mode)) {
+      throw FortisConfigException(
+        'AesStandardCipher only supports CBC, CTR, CFB, or OFB, '
+        'got ${mode.name.toUpperCase()}.',
+      );
+    }
+    if (mode == AesMode.cbc && padding == null) {
+      throw const FortisConfigException(
+        'CBC mode requires a padding scheme. Pass an AesPadding value.',
+      );
+    }
+    if (streamModes.contains(mode) && padding != null) {
+      throw FortisConfigException(
+        'Stream mode ${mode.name.toUpperCase()} does not use padding; '
+        'pass padding: null.',
+      );
+    }
+    return AesStandardCipher._internal(mode: mode, key: key, padding: padding);
+  }
+
+  AesStandardCipher._internal({
+    required super.mode,
+    required super.key,
+    super.padding,
+  }) : super._();
 
   /// Encrypts [plaintext] and returns a structured [AesPayload].
   ///
@@ -733,17 +768,40 @@ final class AesAuthCipher extends AesCipher {
   ///
   /// Defaults: [tagSizeBits] = 128. [ivSize] defaults to 12 bytes for
   /// GCM and 11 bytes for CCM when `null`.
-  AesAuthCipher({
+  ///
+  /// Throws [FortisConfigException] if [mode] is not GCM/CCM, or if
+  /// [tagSizeBits] is invalid for the chosen mode:
+  /// - GCM accepts only 128 bits (PointyCastle limitation).
+  /// - CCM accepts `{32, 48, 64, 80, 96, 112, 128}` per NIST SP 800-38C.
+  factory AesAuthCipher({
+    required AesMode mode,
+    required FortisAesKey key,
+    Uint8List? aad,
+    int tagSizeBits = 128,
+    int? ivSize,
+  }) {
+    if (mode != AesMode.gcm && mode != AesMode.ccm) {
+      throw FortisConfigException(
+        'AesAuthCipher only supports GCM or CCM, got ${mode.name.toUpperCase()}.',
+      );
+    }
+    _validateAuthTagSize(mode, tagSizeBits);
+    return AesAuthCipher._internal(
+      mode: mode,
+      key: key,
+      aad: aad,
+      tagSizeBits: tagSizeBits,
+      ivSize: ivSize ?? (mode == AesMode.gcm ? 12 : 11),
+    );
+  }
+
+  AesAuthCipher._internal({
     required super.mode,
     required super.key,
     super.aad,
-    super.tagSizeBits = 128,
-    int? ivSize,
-  }) : assert(
-         mode == AesMode.gcm || mode == AesMode.ccm,
-         'AesAuthCipher only supports GCM or CCM',
-       ),
-       super._(ivSize: ivSize ?? (mode == AesMode.gcm ? 12 : 11));
+    super.tagSizeBits,
+    required super.ivSize,
+  }) : super._();
 
   /// Encrypts [plaintext] and returns a structured [AesAuthPayload].
   ///
@@ -771,6 +829,27 @@ final class AesAuthCipher extends AesCipher {
     final data = base64Encode(buffer.sublist(ivSize, buffer.length - tagSize));
 
     return AesAuthPayload(iv: ivB64, data: data, tag: tag);
+  }
+}
+
+void _validateAuthTagSize(AesMode mode, int tagSizeBits) {
+  if (mode == AesMode.gcm) {
+    // PointyCastle only accepts 128-bit tags for GCM.
+    if (tagSizeBits != 128) {
+      throw FortisConfigException(
+        'GCM tag size must be 128 bits, got $tagSizeBits. '
+        'PointyCastle does not support other sizes for GCM.',
+      );
+    }
+  } else {
+    // CCM: NIST SP 800-38C allows {32, 48, 64, 80, 96, 112, 128}.
+    const validCcmTagSizes = {32, 48, 64, 80, 96, 112, 128};
+    if (!validCcmTagSizes.contains(tagSizeBits)) {
+      throw FortisConfigException(
+        'CCM tag size must be one of 32/48/64/80/96/112/128 bits '
+        '(per NIST SP 800-38C), got $tagSizeBits.',
+      );
+    }
   }
 }
 

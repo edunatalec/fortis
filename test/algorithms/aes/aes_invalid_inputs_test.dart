@@ -278,6 +278,72 @@ void main() {
     });
   });
 
+  group(
+    'decrypt() — invalid Base64 (bug: FormatException must be wrapped)',
+    () {
+      // The public contract promises that decrypt() only ever throws
+      // FortisException subtypes. base64Decode of garbage currently escapes as
+      // a bare FormatException — these tests pin the expected behaviour.
+
+      test('String with non-Base64 chars throws FortisException', () {
+        final cipher = Fortis.aes().gcm().cipher(key);
+        expect(
+          () => cipher.decrypt('!!!not base64!!!'),
+          throwsA(isA<FortisException>()),
+        );
+      });
+
+      test('String with odd-length Base64 throws FortisException', () {
+        final cipher = Fortis.aes().gcm().cipher(key);
+        expect(() => cipher.decrypt('abc'), throwsA(isA<FortisException>()));
+      });
+
+      test('Map with non-Base64 iv throws FortisException', () {
+        final cipher = Fortis.aes().gcm().cipher(key);
+        expect(
+          () => cipher.decrypt({
+            'iv': 'not_base64!@#',
+            'data': 'aGVsbG8=',
+            'tag': 'aGVsbG8=',
+          }),
+          throwsA(isA<FortisException>()),
+        );
+      });
+
+      test('Map with non-Base64 data throws FortisException', () {
+        final cipher = Fortis.aes().gcm().cipher(key);
+        expect(
+          () => cipher.decrypt({
+            'iv': 'aGVsbG8=',
+            'data': 'not_base64!@#',
+            'tag': 'aGVsbG8=',
+          }),
+          throwsA(isA<FortisException>()),
+        );
+      });
+
+      test('Map with non-Base64 tag throws FortisException', () {
+        final cipher = Fortis.aes().gcm().cipher(key);
+        expect(
+          () => cipher.decrypt({
+            'iv': 'aGVsbG8=',
+            'data': 'aGVsbG8=',
+            'tag': 'not_base64!@#',
+          }),
+          throwsA(isA<FortisException>()),
+        );
+      });
+
+      test('CBC String with non-Base64 throws FortisException', () {
+        final cipher = Fortis.aes().cbc().cipher(key);
+        expect(
+          () => cipher.decrypt('!!!garbage!!!'),
+          throwsA(isA<FortisException>()),
+        );
+      });
+    },
+  );
+
   group('decrypt() — Map input validation', () {
     test('empty Map throws FortisConfigException', () {
       final cipher = Fortis.aes().gcm().cipher(key);
