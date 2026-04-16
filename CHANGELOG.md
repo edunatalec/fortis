@@ -15,6 +15,8 @@
 
 ### Changed
 
+- Split `AesAuthModeBuilder` into `AesGcmModeBuilder` (exposes `aad` and `ivSize`; tag fixed at 128 bits) and `AesCcmModeBuilder` (exposes `aad`, `ivSize`, and `tagSize` validated against NIST SP 800-38C: {32, 48, 64, 80, 96, 112, 128}). Calling `tagSize` on GCM is now a compile-time error instead of a runtime `ArgumentError`. The sealed `AesAuthModeBuilder` remains as a common base type.
+- Renamed `AesAuthModeBuilder.nonceSize` to `ivSize` for consistency with the `encrypt(iv: ...)` parameter.
 - Bumped `lints` to `^6.1.0` and `test` to `^1.31.0`
 
 ## 0.1.0 - 2026-04-12
