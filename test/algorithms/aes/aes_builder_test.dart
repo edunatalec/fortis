@@ -21,75 +21,75 @@ void main() {
     });
   });
 
-  group('nonceSize() — GCM validation', () {
+  group('ivSize() — GCM validation', () {
     AesAuthModeBuilder gcm() =>
         Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder;
 
-    test('nonceSize(12) is valid (default)', () {
-      expect(() => gcm().nonceSize(12), returnsNormally);
+    test('ivSize(12) is valid (default)', () {
+      expect(() => gcm().ivSize(12), returnsNormally);
     });
 
-    test('nonceSize(1) is valid (minimum)', () {
-      expect(() => gcm().nonceSize(1), returnsNormally);
+    test('ivSize(1) is valid (minimum)', () {
+      expect(() => gcm().ivSize(1), returnsNormally);
     });
 
-    test('nonceSize(16) is valid (no exception)', () {
-      expect(() => gcm().nonceSize(16), returnsNormally);
+    test('ivSize(16) is valid (no exception)', () {
+      expect(() => gcm().ivSize(16), returnsNormally);
     });
 
-    test('nonceSize(17) is valid but logs a FortisLog.warn', () {
+    test('ivSize(17) is valid but logs a FortisLog.warn', () {
       // Warning is sent to dart:developer; no exception is thrown.
-      expect(() => gcm().nonceSize(17), returnsNormally);
+      expect(() => gcm().ivSize(17), returnsNormally);
     });
 
-    test('nonceSize(0) throws FortisConfigException', () {
-      expect(() => gcm().nonceSize(0), throwsA(isA<FortisConfigException>()));
+    test('ivSize(0) throws FortisConfigException', () {
+      expect(() => gcm().ivSize(0), throwsA(isA<FortisConfigException>()));
     });
 
-    test('nonceSize(-1) throws FortisConfigException', () {
-      expect(() => gcm().nonceSize(-1), throwsA(isA<FortisConfigException>()));
+    test('ivSize(-1) throws FortisConfigException', () {
+      expect(() => gcm().ivSize(-1), throwsA(isA<FortisConfigException>()));
     });
   });
 
-  group('nonceSize() — CCM validation', () {
+  group('ivSize() — CCM validation', () {
     AesAuthModeBuilder ccm() =>
         Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder;
 
-    test('nonceSize(7) is valid (minimum)', () {
-      expect(() => ccm().nonceSize(7), returnsNormally);
+    test('ivSize(7) is valid (minimum)', () {
+      expect(() => ccm().ivSize(7), returnsNormally);
     });
 
-    test('nonceSize(11) is valid (default)', () {
-      expect(() => ccm().nonceSize(11), returnsNormally);
+    test('ivSize(11) is valid (default)', () {
+      expect(() => ccm().ivSize(11), returnsNormally);
     });
 
-    test('nonceSize(13) is valid (maximum)', () {
-      expect(() => ccm().nonceSize(13), returnsNormally);
+    test('ivSize(13) is valid (maximum)', () {
+      expect(() => ccm().ivSize(13), returnsNormally);
     });
 
-    test('nonceSize(6) throws FortisConfigException', () {
-      expect(() => ccm().nonceSize(6), throwsA(isA<FortisConfigException>()));
+    test('ivSize(6) throws FortisConfigException', () {
+      expect(() => ccm().ivSize(6), throwsA(isA<FortisConfigException>()));
     });
 
-    test('nonceSize(14) throws FortisConfigException', () {
-      expect(() => ccm().nonceSize(14), throwsA(isA<FortisConfigException>()));
+    test('ivSize(14) throws FortisConfigException', () {
+      expect(() => ccm().ivSize(14), throwsA(isA<FortisConfigException>()));
     });
   });
 
   // Compile-time safety:
-  // The lines below would NOT compile because AesBlockModeBuilder and
-  // AesStreamModeBuilder do not define nonceSize():
+  // The lines below would NOT compile because AesCbcModeBuilder and
+  // AesStreamModeBuilder do not define ivSize():
   //
-  //   (Fortis.aes().mode(AesMode.cbc) as AesBlockModeBuilder).nonceSize(12);
-  //   (Fortis.aes().mode(AesMode.ctr) as AesStreamModeBuilder).nonceSize(12);
+  //   (Fortis.aes().mode(AesMode.cbc) as AesCbcModeBuilder).ivSize(12);
+  //   (Fortis.aes().mode(AesMode.ctr) as AesStreamModeBuilder).ivSize(12);
 
-  group('nonceSize() — GCM round-trip', () {
+  group('ivSize() — GCM round-trip', () {
     AesCipher gcmCipher(int size) =>
         (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
-            .nonceSize(size)
+            .ivSize(size)
             .cipher(key);
 
-    test('nonceSize(12) encrypt → decrypt recovers plaintext', () {
+    test('ivSize(12) encrypt → decrypt recovers plaintext', () {
       final c = gcmCipher(12);
       final ciphertext = c.encrypt('hello fortis');
       expect(c.decryptToString(ciphertext), equals('hello fortis'));
@@ -102,13 +102,13 @@ void main() {
       expect(c.decryptToString(ciphertext), equals('hello fortis'));
     });
 
-    test('nonceSize(8) encrypt → nonceSize(8) decrypt recovers plaintext', () {
+    test('ivSize(8) encrypt → ivSize(8) decrypt recovers plaintext', () {
       final c = gcmCipher(8);
       final ciphertext = c.encrypt('hello fortis');
       expect(c.decryptToString(ciphertext), equals('hello fortis'));
     });
 
-    test('nonceSize(8) + iv of wrong size throws FortisConfigException', () {
+    test('ivSize(8) + iv of wrong size throws FortisConfigException', () {
       expect(
         () => gcmCipher(8).encrypt('hello', iv: Uint8List(12)),
         throwsA(isA<FortisConfigException>()),
@@ -116,11 +116,11 @@ void main() {
     });
   });
 
-  group('nonceSize() — CCM round-trip', () {
+  group('ivSize() — CCM round-trip', () {
     for (final size in [7, 11, 13]) {
-      test('nonceSize($size) encrypt → decrypt recovers plaintext', () {
+      test('ivSize($size) encrypt → decrypt recovers plaintext', () {
         final c = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-            .nonceSize(size)
+            .ivSize(size)
             .cipher(key);
         final ciphertext = c.encrypt('hello fortis');
         expect(c.decryptToString(ciphertext), equals('hello fortis'));

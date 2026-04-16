@@ -83,41 +83,35 @@ Future<void> aesEncryptionExample() async {
 Future<void> aesAuthenticatedExample() async {
   final key = await Fortis.aes().keySize(256).generateKey();
 
-  // GCM — default nonce size (12 bytes)
+  // GCM — default IV size (12 bytes)
   final gcm = Fortis.aes().mode(AesMode.gcm).cipher(key);
   final gcmCiphertext = gcm.encrypt('hello fortis');
   print('AES-GCM decrypted: ${gcm.decryptToString(gcmCiphertext)}');
 
-  // CCM — default nonce size (11 bytes)
+  // CCM — default IV size (11 bytes)
   final ccm = Fortis.aes().mode(AesMode.ccm).cipher(key);
   final ccmCiphertext = ccm.encrypt('hello fortis');
   print('AES-CCM decrypted: ${ccm.decryptToString(ccmCiphertext)}');
 
   // GCM with AAD (Additional Authenticated Data)
   final aad = Uint8List.fromList(utf8.encode('additional-data'));
-  final gcmWithAad = (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
-      .aad(aad)
-      .cipher(key);
+  final gcmWithAad = Fortis.aes().gcm().aad(aad).cipher(key);
   final aadCiphertext = gcmWithAad.encrypt('hello fortis');
   print('AES-GCM+AAD decrypted: ${gcmWithAad.decryptToString(aadCiphertext)}');
 
-  // GCM with custom nonce size
-  final gcmCustom = (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
-      .nonceSize(8)
-      .cipher(key);
+  // GCM with custom IV size
+  final gcmCustom = Fortis.aes().gcm().ivSize(8).cipher(key);
   final customCiphertext = gcmCustom.encrypt('hello fortis');
   print(
-    'AES-GCM nonce=8 decrypted: ${gcmCustom.decryptToString(customCiphertext)}',
+    'AES-GCM iv=8 decrypted: ${gcmCustom.decryptToString(customCiphertext)}',
   );
 
-  // CCM with custom nonce sizes (7–13 bytes)
+  // CCM with custom IV sizes (7–13 bytes)
   for (final size in [7, 11, 13]) {
-    final ccmCustom = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
-        .nonceSize(size)
-        .cipher(key);
+    final ccmCustom = Fortis.aes().ccm().ivSize(size).cipher(key);
     final ct = ccmCustom.encrypt('hello fortis');
 
-    print('AES-CCM nonce=$size decrypted: ${ccmCustom.decryptToString(ct)}');
+    print('AES-CCM iv=$size decrypted: ${ccmCustom.decryptToString(ct)}');
   }
 }
 

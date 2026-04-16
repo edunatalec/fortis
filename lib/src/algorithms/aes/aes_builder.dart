@@ -106,7 +106,7 @@ class AesBuilder {
   ///
   /// Authenticated encryption (AEAD). IV defaults to 12 bytes, tag to 128
   /// bits. Configure via [AesAuthModeBuilder.aad], [AesAuthModeBuilder.tagSize],
-  /// and [AesAuthModeBuilder.nonceSize].
+  /// and [AesAuthModeBuilder.ivSize].
   ///
   /// Example:
   /// ```dart
@@ -138,7 +138,7 @@ class AesBuilder {
   /// - [AesMode.cbc] → [AesCbcModeBuilder] (exposes [AesCbcModeBuilder.padding]).
   /// - [AesMode.ctr] / [AesMode.cfb] / [AesMode.ofb] → [AesStreamModeBuilder].
   /// - [AesMode.gcm] / [AesMode.ccm] → [AesAuthModeBuilder] (exposes aad,
-  ///   [AesAuthModeBuilder.tagSize], [AesAuthModeBuilder.nonceSize]).
+  ///   [AesAuthModeBuilder.tagSize], [AesAuthModeBuilder.ivSize]).
   ///
   /// Example:
   /// ```dart
@@ -313,29 +313,29 @@ final class AesStreamModeBuilder extends AesModeBuilder {
 }
 
 /// Builder for authenticated modes ([AesMode.gcm], [AesMode.ccm]).
-/// Exposes [aad], [tagSize], and [nonceSize].
+/// Exposes [aad], [tagSize], and [ivSize].
 ///
 /// Example:
 /// ```dart
 /// final cipher = Fortis.aes()
 ///     .gcm()
-///     .nonceSize(12)
+///     .ivSize(12)
 ///     .aad(Uint8List.fromList(utf8.encode('user-id-123')))
 ///     .cipher(key); // AesAuthCipher
 /// ```
 final class AesAuthModeBuilder extends AesModeBuilder {
   final Uint8List? _aad;
   final int _tagSizeBits;
-  final int _nonceSize;
+  final int _ivSize;
 
   AesAuthModeBuilder._({
     required super.mode,
     Uint8List? aad,
     int tagSizeBits = 128,
-    int? nonceSize,
+    int? ivSize,
   }) : _aad = aad,
        _tagSizeBits = tagSizeBits,
-       _nonceSize = nonceSize ?? (mode == AesMode.gcm ? 12 : 11),
+       _ivSize = ivSize ?? (mode == AesMode.gcm ? 12 : 11),
        super._();
 
   /// Sets the Additional Authenticated Data (AAD).
@@ -355,7 +355,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
     mode: _mode,
     aad: aad,
     tagSizeBits: _tagSizeBits,
-    nonceSize: _nonceSize,
+    ivSize: _ivSize,
   );
 
   /// Sets the authentication tag size in bits. Defaults to 128.
@@ -372,10 +372,10 @@ final class AesAuthModeBuilder extends AesModeBuilder {
     mode: _mode,
     aad: _aad,
     tagSizeBits: bits,
-    nonceSize: _nonceSize,
+    ivSize: _ivSize,
   );
 
-  /// Sets the IV or nonce size in bytes for GCM or CCM mode.
+  /// Sets the IV size in bytes for GCM or CCM mode.
   ///
   /// **GCM** ([AesMode.gcm]): any size >= 1 is accepted. Per NIST SP 800-38D,
   /// 96 bits (12 bytes) is the recommended size for performance and security.
@@ -383,25 +383,26 @@ final class AesAuthModeBuilder extends AesModeBuilder {
   /// Defaults to 12 bytes.
   ///
   /// **CCM** ([AesMode.ccm]): size must be between 7 and 13 bytes per RFC 3610
-  /// and NIST SP 800-38C. The nonce size and the message length field (L) are
-  /// related by L + N = 15. Larger nonces allow fewer unique values but support
-  /// larger messages. Defaults to 11 bytes (~4 GB max message size).
+  /// and NIST SP 800-38C (where this value is called a *nonce*). The IV size
+  /// and the message length field (L) are related by L + N = 15. Larger IVs
+  /// allow fewer unique values but support larger messages. Defaults to 11
+  /// bytes (~4 GB max message size).
   ///
-  /// | CCM nonce size | Max message size |
-  /// |----------------|-----------------|
-  /// | 7 bytes        | 2^64 bytes      |
-  /// | 11 bytes       | ~4 GB (default) |
-  /// | 13 bytes       | 65,535 bytes    |
+  /// | CCM IV size | Max message size |
+  /// |-------------|------------------|
+  /// | 7 bytes     | 2^64 bytes       |
+  /// | 11 bytes    | ~4 GB (default)  |
+  /// | 13 bytes    | 65,535 bytes     |
   ///
   /// Example:
   /// ```dart
-  /// final cipher = Fortis.aes().gcm().nonceSize(12).cipher(key);
-  /// final cipher = Fortis.aes().ccm().nonceSize(13).cipher(key); // smaller messages
+  /// final cipher = Fortis.aes().gcm().ivSize(12).cipher(key);
+  /// final cipher = Fortis.aes().ccm().ivSize(13).cipher(key); // smaller messages
   /// ```
   ///
   /// Throws [FortisConfigException] if [size] < 1 for GCM, or if [size] is
   /// outside [7, 13] for CCM.
-  AesAuthModeBuilder nonceSize(int size) {
+  AesAuthModeBuilder ivSize(int size) {
     if (_mode == AesMode.gcm) {
       if (size < 1) {
         throw FortisConfigException(
@@ -416,10 +417,10 @@ final class AesAuthModeBuilder extends AesModeBuilder {
         );
       }
     } else {
-      // CCM: RFC 3610 and NIST SP 800-38C require nonce size in [7, 13].
+      // CCM: RFC 3610 and NIST SP 800-38C require IV size in [7, 13].
       if (size < 7 || size > 13) {
         throw FortisConfigException(
-          'CCM nonce size must be between 7 and 13 bytes, got $size.',
+          'CCM IV size must be between 7 and 13 bytes, got $size.',
         );
       }
     }
@@ -427,7 +428,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
       mode: _mode,
       aad: _aad,
       tagSizeBits: _tagSizeBits,
-      nonceSize: size,
+      ivSize: size,
     );
   }
 
@@ -450,7 +451,7 @@ final class AesAuthModeBuilder extends AesModeBuilder {
     key: key,
     aad: _aad,
     tagSizeBits: _tagSizeBits,
-    nonceSize: _nonceSize,
+    ivSize: _ivSize,
   );
 }
 

@@ -69,7 +69,7 @@ enum AesMode {
   ///
   /// Per NIST SP 800-38D, the IV in GCM is essentially a nonce (must be
   /// unique per encryption under the same key). The recommended IV size is
-  /// 96 bits (12 bytes). Configurable via [AesAuthModeBuilder.nonceSize].
+  /// 96 bits (12 bytes). Configurable via [AesAuthModeBuilder.ivSize].
   ///
   /// Example:
   /// ```dart
@@ -112,11 +112,11 @@ enum AesMode {
   ///
   /// Commonly used in IoT and TLS contexts.
   ///
-  /// Per NIST SP 800-38C and RFC 3610, the nonce size must be between 7 and
-  /// 13 bytes (default: 11 bytes). There is a trade-off between nonce size
-  /// and maximum message size: `L + N = 15`, where L is the message length
-  /// field size and N is the nonce size. Configurable via
-  /// [AesAuthModeBuilder.nonceSize].
+  /// Per NIST SP 800-38C and RFC 3610, the IV (called a *nonce* in the spec)
+  /// must be between 7 and 13 bytes (default: 11 bytes). There is a trade-off
+  /// between IV size and maximum message size: `L + N = 15`, where L is the
+  /// message length field size and N is the IV size. Configurable via
+  /// [AesAuthModeBuilder.ivSize].
   ///
   /// Example:
   /// ```dart

@@ -122,7 +122,7 @@ void main() {
       );
     });
 
-    test('CCM with wrong nonce size (8 vs 11 default) throws', () {
+    test('CCM with wrong IV size (8 vs 11 default) throws', () {
       final cipher = Fortis.aes().ccm().cipher(key);
       expect(
         () => cipher.encrypt('hi', iv: Uint8List(8)),
@@ -259,9 +259,9 @@ void main() {
       );
     });
 
-    test('GCM with exactly nonce size and no data throws', () {
+    test('GCM with exactly IV size and no data throws', () {
       final cipher = Fortis.aes().gcm().cipher(key);
-      // 12 bytes of nonce but no ciphertext/tag — auth will fail
+      // 12 bytes of IV but no ciphertext/tag — auth will fail
       expect(
         () => cipher.decrypt(Uint8List(12)),
         throwsA(isA<FortisEncryptionException>()),
@@ -396,56 +396,56 @@ void main() {
     });
   });
 
-  group('AesAuthModeBuilder.nonceSize — boundary validation', () {
-    test('GCM.nonceSize(0) throws FortisConfigException', () {
+  group('AesAuthModeBuilder.ivSize — boundary validation', () {
+    test('GCM.ivSize(0) throws FortisConfigException', () {
       expect(
-        () => Fortis.aes().gcm().nonceSize(0),
+        () => Fortis.aes().gcm().ivSize(0),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
-    test('GCM.nonceSize(-5) throws FortisConfigException', () {
+    test('GCM.ivSize(-5) throws FortisConfigException', () {
       expect(
-        () => Fortis.aes().gcm().nonceSize(-5),
+        () => Fortis.aes().gcm().ivSize(-5),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
-    test('CCM.nonceSize(6) throws FortisConfigException', () {
+    test('CCM.ivSize(6) throws FortisConfigException', () {
       expect(
-        () => Fortis.aes().ccm().nonceSize(6),
+        () => Fortis.aes().ccm().ivSize(6),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
-    test('CCM.nonceSize(14) throws FortisConfigException', () {
+    test('CCM.ivSize(14) throws FortisConfigException', () {
       expect(
-        () => Fortis.aes().ccm().nonceSize(14),
+        () => Fortis.aes().ccm().ivSize(14),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
-    test('CCM.nonceSize(100) throws FortisConfigException', () {
+    test('CCM.ivSize(100) throws FortisConfigException', () {
       expect(
-        () => Fortis.aes().ccm().nonceSize(100),
+        () => Fortis.aes().ccm().ivSize(100),
         throwsA(isA<FortisConfigException>()),
       );
     });
 
-    test('GCM nonceSize round-trip with non-default size', () {
-      final cipher = Fortis.aes().gcm().nonceSize(8).cipher(key);
+    test('GCM ivSize round-trip with non-default size', () {
+      final cipher = Fortis.aes().gcm().ivSize(8).cipher(key);
       final ct = cipher.encrypt('hello');
       expect(cipher.decryptToString(ct), equals('hello'));
     });
 
-    test('CCM nonceSize(7) boundary round-trip', () {
-      final cipher = Fortis.aes().ccm().nonceSize(7).cipher(key);
+    test('CCM ivSize(7) boundary round-trip', () {
+      final cipher = Fortis.aes().ccm().ivSize(7).cipher(key);
       final ct = cipher.encrypt('hello');
       expect(cipher.decryptToString(ct), equals('hello'));
     });
 
-    test('CCM nonceSize(13) boundary round-trip', () {
-      final cipher = Fortis.aes().ccm().nonceSize(13).cipher(key);
+    test('CCM ivSize(13) boundary round-trip', () {
+      final cipher = Fortis.aes().ccm().ivSize(13).cipher(key);
       final ct = cipher.encrypt('hello');
       expect(cipher.decryptToString(ct), equals('hello'));
     });

@@ -36,32 +36,31 @@ import 'aes_payload.dart';
 /// final plaintext = cipher.decryptToString(payload);          // 'hello fortis'
 /// ```
 ///
-/// ## IV / nonce management
+/// ## IV management
 ///
-/// The IV or nonce is generated automatically on each call to [encrypt] and
-/// prepended to the ciphertext. For authenticated modes (GCM, CCM), the auth
-/// tag is appended automatically. On [decrypt], the IV or nonce is extracted
-/// automatically from the ciphertext prefix, and the auth tag is verified
-/// automatically for authenticated modes.
+/// The IV is generated automatically on each call to [encrypt] and prepended
+/// to the ciphertext. For authenticated modes (GCM, CCM), the auth tag is
+/// appended automatically. On [decrypt], the IV is extracted automatically
+/// from the ciphertext prefix, and the auth tag is verified automatically for
+/// authenticated modes.
 ///
-/// Per NIST terminology:
-/// - CBC, CTR, CFB, OFB, and GCM use the term **IV** (initialization vector).
-/// - CCM uses the term **nonce**.
-/// The public [encrypt] parameter is always named `iv` regardless of mode.
+/// Fortis uses **IV** uniformly across the public API. NIST SP 800-38C calls
+/// the same value a *nonce* for CCM — same concept, same wire bytes, just a
+/// different spec label.
 ///
 /// ## Buffer layouts
 ///
 /// - ECB: `[ciphertext]`
 /// - CBC / CTR / CFB / OFB: `[iv (16 bytes) | ciphertext]`
 /// - GCM: `[iv (default 12 bytes) | ciphertext | tag (16 bytes)]`
-/// - CCM: `[nonce (default 11 bytes) | ciphertext | tag (16 bytes)]`
+/// - CCM: `[iv (default 11 bytes) | ciphertext | tag (16 bytes)]`
 sealed class AesCipher {
   final AesMode _mode;
   final FortisAesKey _key;
   final AesPadding? _padding;
   final Uint8List? _aad;
   final int _tagSizeBits;
-  final int _nonceSize;
+  final int _ivSize;
 
   AesCipher._({
     required AesMode mode,
@@ -69,13 +68,13 @@ sealed class AesCipher {
     AesPadding? padding,
     Uint8List? aad,
     int tagSizeBits = 128,
-    int nonceSize = 0,
+    int ivSize = 0,
   }) : _mode = mode,
        _key = key,
        _padding = padding,
        _aad = aad,
        _tagSizeBits = tagSizeBits,
-       _nonceSize = nonceSize;
+       _ivSize = ivSize;
 
   /// Encrypts [plaintext] and returns the combined buffer as raw bytes.
   ///
@@ -83,15 +82,15 @@ sealed class AesCipher {
   /// - [Uint8List]: raw bytes, encrypted as-is.
   /// - [String]: UTF-8 encoded before encryption.
   ///
-  /// The optional [iv] provides the initialization vector or nonce. When
-  /// omitted, a cryptographically secure random value of the correct size
-  /// is generated automatically — this is the recommended behavior.
+  /// The optional [iv] provides the initialization vector. When omitted, a
+  /// cryptographically secure random value of the correct size is generated
+  /// automatically — this is the recommended behavior.
   ///
   /// Required [iv] sizes by mode:
   /// - ECB: must be `null` (ECB has no IV).
   /// - CBC / CFB / OFB / CTR: exactly 16 bytes.
-  /// - GCM: size configured via [AesAuthModeBuilder.nonceSize] (default 12).
-  /// - CCM: size configured via [AesAuthModeBuilder.nonceSize] (default 11).
+  /// - GCM: size configured via [AesAuthModeBuilder.ivSize] (default 12).
+  /// - CCM: size configured via [AesAuthModeBuilder.ivSize] (default 11).
   ///
   /// Example:
   /// ```dart
@@ -364,7 +363,7 @@ sealed class AesCipher {
   }
 
   Uint8List _encryptGcm(Uint8List plaintext, Uint8List? iv) {
-    final resolvedIv = _resolveIv(_nonceSize, iv, 'GCM'); // NIST SP 800-38D
+    final resolvedIv = _resolveIv(_ivSize, iv, 'GCM'); // NIST SP 800-38D
     final cipher = GCMBlockCipher(AESEngine());
 
     cipher.init(
@@ -382,7 +381,7 @@ sealed class AesCipher {
   }
 
   Uint8List _encryptCcm(Uint8List plaintext, Uint8List? iv) {
-    final nonce = _resolveNonce(_nonceSize, iv, 'CCM'); // NIST SP 800-38C
+    final resolvedIv = _resolveIv(_ivSize, iv, 'CCM'); // NIST SP 800-38C
     final cipher = CCMBlockCipher(AESEngine());
 
     cipher.init(
@@ -390,12 +389,12 @@ sealed class AesCipher {
       AEADParameters(
         KeyParameter(_key.toBytes()),
         _tagSizeBits,
-        nonce,
+        resolvedIv,
         _aad ?? Uint8List(0),
       ),
     );
 
-    return _prepend(nonce, cipher.process(plaintext));
+    return _prepend(resolvedIv, cipher.process(plaintext));
   }
 
   Uint8List _decryptEcb(Uint8List ciphertext) {
@@ -490,15 +489,15 @@ sealed class AesCipher {
   }
 
   Uint8List _decryptGcm(Uint8List ciphertext) {
-    if (ciphertext.length < _nonceSize) {
+    if (ciphertext.length < _ivSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for GCM mode '
-        '(expected at least $_nonceSize bytes for IV, got ${ciphertext.length}).',
+        '(expected at least $_ivSize bytes for IV, got ${ciphertext.length}).',
       );
     }
 
-    final iv = ciphertext.sublist(0, _nonceSize); // NIST SP 800-38D
-    final body = ciphertext.sublist(_nonceSize); // ciphertext + auth tag
+    final iv = ciphertext.sublist(0, _ivSize); // NIST SP 800-38D
+    final body = ciphertext.sublist(_ivSize); // ciphertext + auth tag
     final cipher = GCMBlockCipher(AESEngine());
 
     cipher.init(
@@ -522,15 +521,15 @@ sealed class AesCipher {
   }
 
   Uint8List _decryptCcm(Uint8List ciphertext) {
-    if (ciphertext.length < _nonceSize) {
+    if (ciphertext.length < _ivSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for CCM mode '
-        '(expected at least $_nonceSize bytes for nonce, got ${ciphertext.length}).',
+        '(expected at least $_ivSize bytes for IV, got ${ciphertext.length}).',
       );
     }
 
-    final nonce = ciphertext.sublist(0, _nonceSize); // NIST SP 800-38C
-    final body = ciphertext.sublist(_nonceSize);
+    final iv = ciphertext.sublist(0, _ivSize); // NIST SP 800-38C
+    final body = ciphertext.sublist(_ivSize);
     final cipher = CCMBlockCipher(AESEngine());
 
     cipher.init(
@@ -538,7 +537,7 @@ sealed class AesCipher {
       AEADParameters(
         KeyParameter(_key.toBytes()),
         _tagSizeBits,
-        nonce,
+        iv,
         _aad ?? Uint8List(0),
       ),
     );
@@ -570,16 +569,6 @@ sealed class AesCipher {
     if (provided != null && provided.length != expectedSize) {
       throw FortisConfigException(
         '$mode IV must be $expectedSize bytes, got ${provided.length}.',
-      );
-    }
-
-    return provided ?? _randomBytes(expectedSize);
-  }
-
-  Uint8List _resolveNonce(int expectedSize, Uint8List? provided, String mode) {
-    if (provided != null && provided.length != expectedSize) {
-      throw FortisConfigException(
-        '$mode nonce must be $expectedSize bytes, got ${provided.length}.',
       );
     }
 
@@ -732,7 +721,7 @@ final class AesStandardCipher extends AesCipher {
 /// ```
 ///
 /// Use [AesAuthModeBuilder.aad], [AesAuthModeBuilder.tagSize], and
-/// [AesAuthModeBuilder.nonceSize] to customize before building.
+/// [AesAuthModeBuilder.ivSize] to customize before building.
 final class AesAuthCipher extends AesCipher {
   /// Creates an authenticated AES cipher for GCM or CCM. Prefer the
   /// builder:
@@ -741,24 +730,24 @@ final class AesAuthCipher extends AesCipher {
   /// final cipher = Fortis.aes().gcm().cipher(key); // or .ccm()
   /// ```
   ///
-  /// Defaults: [tagSizeBits] = 128. [nonceSize] defaults to 12 bytes for
+  /// Defaults: [tagSizeBits] = 128. [ivSize] defaults to 12 bytes for
   /// GCM and 11 bytes for CCM when `null`.
   AesAuthCipher({
     required super.mode,
     required super.key,
     super.aad,
     super.tagSizeBits = 128,
-    int? nonceSize,
+    int? ivSize,
   }) : assert(
          mode == AesMode.gcm || mode == AesMode.ccm,
          'AesAuthCipher only supports GCM or CCM',
        ),
-       super._(nonceSize: nonceSize ?? (mode == AesMode.gcm ? 12 : 11));
+       super._(ivSize: ivSize ?? (mode == AesMode.gcm ? 12 : 11));
 
   /// Encrypts [plaintext] and returns a structured [AesAuthPayload].
   ///
-  /// The payload carries the IV/nonce, ciphertext, and authentication tag
-  /// as separate Base64 fields — matching the wire format used by .NET,
+  /// The payload carries the IV, ciphertext, and authentication tag as
+  /// separate Base64 fields — matching the wire format used by .NET,
   /// Java, and OpenSSL libraries.
   ///
   /// Example:
@@ -774,13 +763,11 @@ final class AesAuthCipher extends AesCipher {
   AesAuthPayload encryptToPayload(Object plaintext, {Uint8List? iv}) {
     final buffer = encrypt(plaintext, iv: iv);
 
-    final nonceSize = _nonceSize;
+    final ivSize = _ivSize;
     const tagSize = 16;
-    final ivB64 = base64Encode(buffer.sublist(0, nonceSize));
+    final ivB64 = base64Encode(buffer.sublist(0, ivSize));
     final tag = base64Encode(buffer.sublist(buffer.length - tagSize));
-    final data = base64Encode(
-      buffer.sublist(nonceSize, buffer.length - tagSize),
-    );
+    final data = base64Encode(buffer.sublist(ivSize, buffer.length - tagSize));
 
     return AesAuthPayload(iv: ivB64, data: data, tag: tag);
   }

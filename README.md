@@ -114,7 +114,7 @@ final restored = FortisAesKey.fromBase64(base64);
 ```dart
 // CBC with PKCS7 padding
 final cipher = Fortis.aes()
-    .mode(AesMode.cbc)
+    .cbc()
     .padding(AesPadding.pkcs7)
     .cipher(key);
 
@@ -129,9 +129,7 @@ final ciphertext = cipher.encrypt('secret message', iv: myIv);
 
 ```dart
 // CTR mode — no padding needed
-final cipher = Fortis.aes()
-    .mode(AesMode.ctr)
-    .cipher(key);
+final cipher = Fortis.aes().ctr().cipher(key);
 
 final ciphertext = cipher.encrypt('secret message');
 final plaintext = cipher.decryptToString(ciphertext);
@@ -143,9 +141,7 @@ GCM and CCM provide both encryption and integrity verification via an authentica
 
 ```dart
 // GCM with default settings
-final cipher = Fortis.aes()
-    .mode(AesMode.gcm)
-    .cipher(key);
+final cipher = Fortis.aes().gcm().cipher(key);
 
 final ciphertext = cipher.encrypt('secret message');
 final plaintext = cipher.decryptToString(ciphertext);
@@ -157,7 +153,7 @@ final plaintext = cipher.decryptToString(ciphertext);
 final aad = Uint8List.fromList(utf8.encode('metadata'));
 
 final cipher = Fortis.aes()
-    .mode(AesMode.gcm)
+    .gcm()
     .aad(aad)
     .cipher(key);
 
@@ -166,20 +162,14 @@ final ciphertext = cipher.encrypt('secret message');
 final plaintext = cipher.decryptToString(ciphertext);
 ```
 
-#### Custom Nonce Size
+#### Custom IV Size
 
 ```dart
-// GCM with custom nonce size
-final cipher = Fortis.aes()
-    .mode(AesMode.gcm)
-    .nonceSize(16)
-    .cipher(key);
+// GCM with custom IV size
+final cipher = Fortis.aes().gcm().ivSize(16).cipher(key);
 
-// CCM with custom nonce size (7–13 bytes)
-final cipher = Fortis.aes()
-    .mode(AesMode.ccm)
-    .nonceSize(13)
-    .cipher(key);
+// CCM with custom IV size (7–13 bytes)
+final cipher = Fortis.aes().ccm().ivSize(13).cipher(key);
 ```
 
 ### Payloads
