@@ -89,8 +89,8 @@ sealed class AesCipher {
   /// Required [iv] sizes by mode:
   /// - ECB: must be `null` (ECB has no IV).
   /// - CBC / CFB / OFB / CTR: exactly 16 bytes.
-  /// - GCM: size configured via [AesAuthModeBuilder.ivSize] (default 12).
-  /// - CCM: size configured via [AesAuthModeBuilder.ivSize] (default 11).
+  /// - GCM: size configured via [AesGcmModeBuilder.ivSize] (default 12).
+  /// - CCM: size configured via [AesCcmModeBuilder.ivSize] (default 11).
   ///
   /// Example:
   /// ```dart
@@ -720,8 +720,9 @@ final class AesStandardCipher extends AesCipher {
 /// print(payload.tag);                              // ✓ typed, no cast
 /// ```
 ///
-/// Use [AesAuthModeBuilder.aad], [AesAuthModeBuilder.tagSize], and
-/// [AesAuthModeBuilder.ivSize] to customize before building.
+/// Use [AesGcmModeBuilder] for GCM (aad, ivSize; tag fixed at 128 bits) or
+/// [AesCcmModeBuilder] for CCM (aad, ivSize, tagSize) to customize before
+/// building.
 final class AesAuthCipher extends AesCipher {
   /// Creates an authenticated AES cipher for GCM or CCM. Prefer the
   /// builder:

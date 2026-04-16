@@ -276,28 +276,6 @@ void main() {
         throwsA(isA<FortisEncryptionException>()),
       );
     });
-
-    test(
-      'GCM with tagSize != 128 wraps PointyCastle ArgumentError as '
-      'FortisEncryptionException',
-      () {
-        // PointyCastle 4.x only accepts macSize=16 (128 bits) for GCM and
-        // throws an ArgumentError for other sizes. Fortis catches the
-        // non-Fortis exception and wraps it as FortisEncryptionException
-        // with the "AES encryption failed: ..." prefix.
-        final cipher = Fortis.aes().gcm().tagSize(96).cipher(key);
-        expect(
-          () => cipher.encrypt('hello'),
-          throwsA(
-            isA<FortisEncryptionException>().having(
-              (e) => e.message,
-              'message',
-              startsWith('AES encryption failed:'),
-            ),
-          ),
-        );
-      },
-    );
   });
 
   group('decrypt() — Map input validation', () {

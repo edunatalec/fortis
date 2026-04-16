@@ -22,8 +22,8 @@ void main() {
   });
 
   group('ivSize() — GCM validation', () {
-    AesAuthModeBuilder gcm() =>
-        Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder;
+    AesGcmModeBuilder gcm() =>
+        Fortis.aes().mode(AesMode.gcm) as AesGcmModeBuilder;
 
     test('ivSize(12) is valid (default)', () {
       expect(() => gcm().ivSize(12), returnsNormally);
@@ -52,8 +52,8 @@ void main() {
   });
 
   group('ivSize() — CCM validation', () {
-    AesAuthModeBuilder ccm() =>
-        Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder;
+    AesCcmModeBuilder ccm() =>
+        Fortis.aes().mode(AesMode.ccm) as AesCcmModeBuilder;
 
     test('ivSize(7) is valid (minimum)', () {
       expect(() => ccm().ivSize(7), returnsNormally);
@@ -77,15 +77,18 @@ void main() {
   });
 
   // Compile-time safety:
-  // The lines below would NOT compile because AesCbcModeBuilder and
-  // AesStreamModeBuilder do not define ivSize():
-  //
-  //   (Fortis.aes().mode(AesMode.cbc) as AesCbcModeBuilder).ivSize(12);
-  //   (Fortis.aes().mode(AesMode.ctr) as AesStreamModeBuilder).ivSize(12);
+  // The lines below would NOT compile:
+  //   - AesCbcModeBuilder and AesStreamModeBuilder do not define ivSize():
+  //       (Fortis.aes().mode(AesMode.cbc) as AesCbcModeBuilder).ivSize(12);
+  //       (Fortis.aes().mode(AesMode.ctr) as AesStreamModeBuilder).ivSize(12);
+  //   - AesGcmModeBuilder does NOT define tagSize() — tag is fixed at 128
+  //     bits (the only value PointyCastle supports):
+  //       Fortis.aes().gcm().tagSize(96); // compile error
+  //     Use AesCcmModeBuilder.tagSize for variable tag sizes instead.
 
   group('ivSize() — GCM round-trip', () {
     AesCipher gcmCipher(int size) =>
-        (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
+        (Fortis.aes().mode(AesMode.gcm) as AesGcmModeBuilder)
             .ivSize(size)
             .cipher(key);
 
@@ -119,7 +122,7 @@ void main() {
   group('ivSize() — CCM round-trip', () {
     for (final size in [7, 11, 13]) {
       test('ivSize($size) encrypt → decrypt recovers plaintext', () {
-        final c = (Fortis.aes().mode(AesMode.ccm) as AesAuthModeBuilder)
+        final c = (Fortis.aes().mode(AesMode.ccm) as AesCcmModeBuilder)
             .ivSize(size)
             .cipher(key);
         final ciphertext = c.encrypt('hello fortis');
@@ -128,26 +131,60 @@ void main() {
     }
   });
 
-  group('tagSize()', () {
-    test('tagSize(128) GCM round-trip (default)', () {
-      final c = Fortis.aes().gcm().tagSize(128).cipher(key);
-      final ct = c.encrypt('hello fortis');
-      expect(c.decryptToString(ct), equals('hello fortis'));
-    });
-
-    test('tagSize(96) CCM round-trip', () {
+  group('tagSize() — CCM', () {
+    test('tagSize(96) round-trip', () {
       final c = Fortis.aes().ccm().tagSize(96).cipher(key);
       final ct = c.encrypt('hello fortis');
       expect(c.decryptToString(ct), equals('hello fortis'));
     });
 
-    test('tagSize(64) CCM round-trip', () {
+    test('tagSize(64) round-trip', () {
       final c = Fortis.aes().ccm().tagSize(64).cipher(key);
       final ct = c.encrypt('hello fortis');
       expect(c.decryptToString(ct), equals('hello fortis'));
     });
 
-    test('tagSize + aad + ivSize chained round-trip (CCM)', () {
+    test('all NIST-valid sizes round-trip', () {
+      for (final bits in [32, 48, 64, 80, 96, 112, 128]) {
+        final c = Fortis.aes().ccm().tagSize(bits).cipher(key);
+        final ct = c.encrypt('hello fortis');
+        expect(
+          c.decryptToString(ct),
+          equals('hello fortis'),
+          reason: 'tagSize=$bits',
+        );
+      }
+    });
+
+    test('tagSize(65) throws FortisConfigException', () {
+      expect(
+        () => Fortis.aes().ccm().tagSize(65),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+
+    test('tagSize(0) throws FortisConfigException', () {
+      expect(
+        () => Fortis.aes().ccm().tagSize(0),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+
+    test('tagSize(-1) throws FortisConfigException', () {
+      expect(
+        () => Fortis.aes().ccm().tagSize(-1),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+
+    test('tagSize(256) throws FortisConfigException', () {
+      expect(
+        () => Fortis.aes().ccm().tagSize(256),
+        throwsA(isA<FortisConfigException>()),
+      );
+    });
+
+    test('tagSize + aad + ivSize chained round-trip', () {
       final aad = Uint8List.fromList([1, 2, 3, 4]);
       final c = Fortis.aes().ccm().tagSize(96).aad(aad).ivSize(11).cipher(key);
       final ct = c.encrypt('hello fortis');

@@ -69,7 +69,7 @@ enum AesMode {
   ///
   /// Per NIST SP 800-38D, the IV in GCM is essentially a nonce (must be
   /// unique per encryption under the same key). The recommended IV size is
-  /// 96 bits (12 bytes). Configurable via [AesAuthModeBuilder.ivSize].
+  /// 96 bits (12 bytes). Configurable via [AesGcmModeBuilder.ivSize].
   ///
   /// Example:
   /// ```dart
@@ -116,7 +116,7 @@ enum AesMode {
   /// must be between 7 and 13 bytes (default: 11 bytes). There is a trade-off
   /// between IV size and maximum message size: `L + N = 15`, where L is the
   /// message length field size and N is the IV size. Configurable via
-  /// [AesAuthModeBuilder.ivSize].
+  /// [AesCcmModeBuilder.ivSize]; tag size via [AesCcmModeBuilder.tagSize].
   ///
   /// Example:
   /// ```dart
