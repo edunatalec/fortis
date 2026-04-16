@@ -74,6 +74,90 @@ void main() {
     );
   });
 
+  group('impossible casts between sealed subtypes throw TypeError', () {
+    test('AesAuthCipher cannot be cast to AesStandardCipher', () {
+      final AesCipher cipher = Fortis.aes().gcm().cipher(key);
+      expect(() => cipher as AesStandardCipher, throwsA(isA<TypeError>()));
+    });
+
+    test('AesAuthCipher cannot be cast to AesEcbCipher', () {
+      final AesCipher cipher = Fortis.aes().gcm().cipher(key);
+      expect(() => cipher as AesEcbCipher, throwsA(isA<TypeError>()));
+    });
+
+    test('AesStandardCipher cannot be cast to AesAuthCipher', () {
+      final AesCipher cipher = Fortis.aes().cbc().cipher(key);
+      expect(() => cipher as AesAuthCipher, throwsA(isA<TypeError>()));
+    });
+
+    test('AesStandardCipher cannot be cast to AesEcbCipher', () {
+      final AesCipher cipher = Fortis.aes().ctr().cipher(key);
+      expect(() => cipher as AesEcbCipher, throwsA(isA<TypeError>()));
+    });
+
+    test('AesEcbCipher cannot be cast to AesAuthCipher', () {
+      final AesCipher cipher = Fortis.aes().ecb().cipher(key);
+      expect(() => cipher as AesAuthCipher, throwsA(isA<TypeError>()));
+    });
+
+    test('AesEcbCipher cannot be cast to AesStandardCipher', () {
+      final AesCipher cipher = Fortis.aes().ecb().cipher(key);
+      expect(() => cipher as AesStandardCipher, throwsA(isA<TypeError>()));
+    });
+
+    test('dynamic mode(AesMode.gcm).cipher() is AesAuthCipher at runtime', () {
+      final AesCipher cipher = Fortis.aes().mode(AesMode.gcm).cipher(key);
+      expect(cipher, isA<AesAuthCipher>());
+      expect(cipher, isNot(isA<AesStandardCipher>()));
+      expect(cipher, isNot(isA<AesEcbCipher>()));
+    });
+
+    test('dynamic mode(AesMode.cbc).cipher() is AesStandardCipher', () {
+      final AesCipher cipher = Fortis.aes().mode(AesMode.cbc).cipher(key);
+      expect(cipher, isA<AesStandardCipher>());
+      expect(cipher, isNot(isA<AesAuthCipher>()));
+      expect(cipher, isNot(isA<AesEcbCipher>()));
+    });
+
+    test('dynamic mode(AesMode.ecb).cipher() is AesEcbCipher', () {
+      final AesCipher cipher = Fortis.aes().mode(AesMode.ecb).cipher(key);
+      expect(cipher, isA<AesEcbCipher>());
+      expect(cipher, isNot(isA<AesAuthCipher>()));
+      expect(cipher, isNot(isA<AesStandardCipher>()));
+    });
+
+    test('sealed pattern matching covers all three subtypes exhaustively', () {
+      String describe(AesCipher c) => switch (c) {
+        AesEcbCipher() => 'ecb',
+        AesStandardCipher() => 'standard',
+        AesAuthCipher() => 'auth',
+      };
+
+      expect(describe(Fortis.aes().ecb().cipher(key)), equals('ecb'));
+      expect(describe(Fortis.aes().cbc().cipher(key)), equals('standard'));
+      expect(describe(Fortis.aes().ctr().cipher(key)), equals('standard'));
+      expect(describe(Fortis.aes().gcm().cipher(key)), equals('auth'));
+      expect(describe(Fortis.aes().ccm().cipher(key)), equals('auth'));
+    });
+  });
+
+  group('mode-builder cast safety', () {
+    test('ecb builder cannot be cast to AesAuthModeBuilder', () {
+      final AesModeBuilder builder = Fortis.aes().mode(AesMode.ecb);
+      expect(() => builder as AesAuthModeBuilder, throwsA(isA<TypeError>()));
+    });
+
+    test('gcm builder cannot be cast to AesCbcModeBuilder', () {
+      final AesModeBuilder builder = Fortis.aes().mode(AesMode.gcm);
+      expect(() => builder as AesCbcModeBuilder, throwsA(isA<TypeError>()));
+    });
+
+    test('stream builder cannot be cast to AesAuthModeBuilder', () {
+      final AesModeBuilder builder = Fortis.aes().mode(AesMode.ctr);
+      expect(() => builder as AesAuthModeBuilder, throwsA(isA<TypeError>()));
+    });
+  });
+
   group('round-trip: typed payloads via specific ciphers', () {
     test('GCM: encryptToPayload → decrypt → plaintext', () {
       final cipher = Fortis.aes().gcm().cipher(key);
