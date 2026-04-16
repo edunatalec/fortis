@@ -12,8 +12,8 @@ dependencies:
   pointycastle: ^4.0.0
 
 dev_dependencies:
-  lints: ^6.0.0
-  test: ^1.25.6
+  lints: ^6.1.0
+  test: ^1.31.0
 
 topics:
   - cryptography
