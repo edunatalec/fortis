@@ -39,7 +39,6 @@ void main() {
           .cipher(key);
       final aligned = Uint8List.fromList(List.generate(32, (i) => i));
       final ct = cipher.encrypt(aligned);
-      // Decrypting exercises _NoPadding.padCount.
       expect(() => cipher.decrypt(ct), returnsNormally);
     });
 

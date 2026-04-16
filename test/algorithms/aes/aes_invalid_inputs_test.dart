@@ -261,7 +261,6 @@ void main() {
 
     test('GCM with exactly IV size and no data throws', () {
       final cipher = Fortis.aes().gcm().cipher(key);
-      // 12 bytes of IV but no ciphertext/tag — auth will fail
       expect(
         () => cipher.decrypt(Uint8List(12)),
         throwsA(isA<FortisEncryptionException>()),
@@ -270,7 +269,6 @@ void main() {
 
     test('CCM ciphertext shorter than IV size throws', () {
       final cipher = Fortis.aes().ccm().cipher(key);
-      // 5 bytes: less than the default 11-byte CCM IV
       expect(
         () => cipher.decrypt(Uint8List(5)),
         throwsA(isA<FortisEncryptionException>()),
@@ -281,10 +279,6 @@ void main() {
   group(
     'decrypt() — invalid Base64 (bug: FormatException must be wrapped)',
     () {
-      // The public contract promises that decrypt() only ever throws
-      // FortisException subtypes. base64Decode of garbage currently escapes as
-      // a bare FormatException — these tests pin the expected behaviour.
-
       test('String with non-Base64 chars throws FortisException', () {
         final cipher = Fortis.aes().gcm().cipher(key);
         expect(
@@ -439,7 +433,6 @@ void main() {
     test('GCM: flipping a byte in ciphertext triggers auth failure', () {
       final cipher = Fortis.aes().gcm().cipher(key);
       final ct = cipher.encrypt('hello fortis');
-      // Tamper a byte in the middle (inside ciphertext region).
       final tampered = Uint8List.fromList(ct);
       tampered[ct.length ~/ 2] ^= 0xFF;
       expect(

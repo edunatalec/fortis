@@ -1,10 +1,6 @@
 import 'package:fortis/fortis.dart';
 import 'package:test/test.dart';
 
-// These tests pin the expected behaviour of the public cipher constructors
-// when called directly (bypassing the builders). The builders already
-// validate — but the constructors are public and must fail fast too.
-
 void main() {
   late FortisAesKey key;
 

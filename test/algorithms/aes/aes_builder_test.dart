@@ -76,15 +76,9 @@ void main() {
     });
   });
 
-  // Compile-time safety:
-  // The lines below would NOT compile:
-  //   - AesCbcModeBuilder and AesStreamModeBuilder do not define ivSize():
-  //       (Fortis.aes().mode(AesMode.cbc) as AesCbcModeBuilder).ivSize(12);
-  //       (Fortis.aes().mode(AesMode.ctr) as AesStreamModeBuilder).ivSize(12);
-  //   - AesGcmModeBuilder does NOT define tagSize() — tag is fixed at 128
-  //     bits (the only value PointyCastle supports):
-  //       Fortis.aes().gcm().tagSize(96); // compile error
-  //     Use AesCcmModeBuilder.tagSize for variable tag sizes instead.
+  // Compile-time safety (these would fail to compile):
+  //   Fortis.aes().cbc().ivSize(12);      // ivSize not on CBC/stream builders
+  //   Fortis.aes().gcm().tagSize(96);     // tagSize not on GCM (fixed at 128)
 
   group('ivSize() — GCM round-trip', () {
     AesCipher gcmCipher(int size) =>

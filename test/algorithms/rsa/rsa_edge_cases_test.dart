@@ -453,8 +453,6 @@ void main() {
   });
 
   group('OAEP v2.1 — size validation', () {
-    // For 2048-bit RSA + SHA-256, OAEP v2.1 max message = 256 - 2*32 - 2 = 190
-    // bytes. Anything bigger must be rejected at encryption time.
     test('encrypt with message longer than max throws', () {
       final encrypter = Fortis.rsa()
           .padding(RsaPadding.oaep_v2_1)
@@ -491,4 +489,32 @@ void main() {
       );
     });
   });
+
+  group(
+    'decrypt() — invalid Base64 (bug: FormatException must be wrapped)',
+    () {
+      RsaDecrypter dec() => Fortis.rsa()
+          .padding(RsaPadding.oaep_v2)
+          .hash(RsaHash.sha256)
+          .decrypter(pair.privateKey);
+
+      test('String with non-Base64 chars throws FortisException', () {
+        expect(
+          () => dec().decrypt('!!!not base64!!!'),
+          throwsA(isA<FortisException>()),
+        );
+      });
+
+      test('String with odd-length Base64 throws FortisException', () {
+        expect(() => dec().decrypt('abc'), throwsA(isA<FortisException>()));
+      });
+
+      test('decryptToString with non-Base64 throws FortisException', () {
+        expect(
+          () => dec().decryptToString('@@@'),
+          throwsA(isA<FortisException>()),
+        );
+      });
+    },
+  );
 }

@@ -73,7 +73,17 @@ class RsaDecrypter {
   /// (wrong key, corrupted data, mismatched padding/hash/label, etc.).
   Uint8List decrypt(Object input) {
     if (input is Uint8List) return _decryptBytes(input);
-    if (input is String) return _decryptBytes(base64Decode(input));
+    if (input is String) {
+      final Uint8List bytes;
+      try {
+        bytes = base64Decode(input);
+      } on FormatException catch (e) {
+        throw FortisConfigException(
+          'Invalid Base64 in ciphertext: ${e.message}',
+        );
+      }
+      return _decryptBytes(bytes);
+    }
 
     throw FortisConfigException(
       'Unsupported input type: ${input.runtimeType}. '
