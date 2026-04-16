@@ -9,7 +9,8 @@ High-level cryptography for Dart. Fluent builder API with compile-time safety, s
 
 - **AES** encryption with 7 cipher modes (ECB, CBC, CTR, CFB, OFB, GCM, CCM)
 - **RSA** encryption with 4 padding schemes (PKCS#1 v1.5, OAEP v1/v2/v2.1)
-- Fluent builder API with compile-time safety via phantom types
+- **ECDH** key agreement with NIST curves (P-256, P-384, P-521) and HKDF-SHA256 derivation
+- Fluent builder API with compile-time safety — phantom types for RSA and sealed cipher variants for AES
 - Automatic IV/nonce generation with cryptographically secure random
 - Structured payloads for easy serialization
 - Key serialization in PEM, DER, and Base64 formats
@@ -27,7 +28,7 @@ import 'package:fortis/fortis.dart';
 
 // AES-256-GCM encryption
 final key = await Fortis.aes().generateKey();
-final cipher = Fortis.aes().mode(AesMode.gcm).cipher(key);
+final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
 
 final ciphertext = cipher.encrypt('Hello, Fortis!');
 final plaintext = cipher.decryptToString(ciphertext);
@@ -47,6 +48,16 @@ final decrypter = Fortis.rsa()
 
 final encrypted = encrypter.encrypt('Hello, Fortis!');
 final decrypted = decrypter.decryptToString(encrypted);
+
+// ECDH → shared AES key
+final alice = await Fortis.ecdh().generateKeyPair();
+final bob = await Fortis.ecdh().generateKeyPair();
+
+final sharedKey = Fortis.ecdh()
+    .keyDerivation(alice.privateKey)
+    .deriveAesKey(bob.publicKey);
+
+final sharedCipher = Fortis.aes().gcm().cipher(sharedKey);
 ```
 
 ---
@@ -173,22 +184,26 @@ final cipher = Fortis.aes()
 
 ### Payloads
 
-`encryptToPayload` returns a structured object for easy serialization:
+`encryptToPayload` returns a structured object for easy serialization. Use the typed shortcuts (`.gcm()`, `.ccm()`, `.cbc()`, `.ctr()`, `.cfb()`, `.ofb()`) to get the concrete cipher type — the payload type is inferred statically, no cast required.
 
 ```dart
-// Authenticated modes return AesAuthPayload
-final payload = cipher.encryptToPayload('hello') as AesAuthPayload;
-print(payload.iv);   // Base64-encoded nonce
-print(payload.data); // Base64-encoded ciphertext
-print(payload.tag);  // Base64-encoded authentication tag
-print(payload.toMap()); // {'iv': '...', 'data': '...', 'tag': '...'}
+// Authenticated modes (GCM/CCM) → AesAuthCipher → AesAuthPayload
+final gcm = Fortis.aes().gcm().cipher(key);
+final authPayload = gcm.encryptToPayload('hello');
+print(authPayload.iv);   // Base64-encoded nonce
+print(authPayload.data); // Base64-encoded ciphertext
+print(authPayload.tag);  // Base64-encoded authentication tag
+print(authPayload.toMap()); // {'iv': '...', 'data': '...', 'tag': '...'}
 
-// Non-authenticated modes return AesPayload
-final payload = cipher.encryptToPayload('hello') as AesPayload;
+// Non-authenticated modes (CBC/CTR/CFB/OFB) → AesStandardCipher → AesPayload
+final cbc = Fortis.aes().cbc().cipher(key);
+final payload = cbc.encryptToPayload('hello');
 print(payload.iv);   // Base64-encoded IV
 print(payload.data); // Base64-encoded ciphertext
 print(payload.toMap()); // {'iv': '...', 'data': '...'}
 ```
+
+> When the mode is only known at runtime, use `Fortis.aes().mode(runtimeMode).cipher(key)` — it returns the sealed base `AesCipher`; pattern-match or cast to the concrete variant before calling `encryptToPayload`.
 
 ### Decryption Input Formats
 
@@ -354,6 +369,99 @@ final encrypter = Fortis.rsa()
     .padding(RsaPadding.oaep_v2_1)
     .hash(RsaHash.sha256)
     .encrypter(pair.publicKey, label: Uint8List.fromList([1, 2, 3]));
+```
+
+---
+
+## ECDH (Elliptic Curve Diffie–Hellman)
+
+### Supported Curves
+
+| Curve  | Security Level | Description          |
+| ------ | -------------- | -------------------- |
+| `p256` | 128-bit        | NIST P-256 (default) |
+| `p384` | 192-bit        | NIST P-384           |
+| `p521` | 256-bit        | NIST P-521           |
+
+### Key Pair Generation
+
+```dart
+// Default (P-256)
+final pair = await Fortis.ecdh().generateKeyPair();
+
+// Specific curve
+final pair = await Fortis.ecdh().curve(EcdhCurve.p384).generateKeyPair();
+
+final publicKey = pair.publicKey;
+final privateKey = pair.privateKey;
+```
+
+### Key Serialization
+
+```dart
+// Public key — PEM (X.509), DER, Base64
+final pem = publicKey.toPem();
+final der = publicKey.toDer();
+final derBase64 = publicKey.toDerBase64();
+
+// Private key — PEM defaults to PKCS#8; SEC1 available for interop
+final pem = privateKey.toPem();
+final sec1 = privateKey.toPem(format: EcdhPrivateKeyFormat.sec1);
+final der = privateKey.toDer();
+
+// Import
+final publicKey = FortisEcdhPublicKey.fromPem(pemString);
+final privateKey = FortisEcdhPrivateKey.fromPem(pemString);
+final publicKey = FortisEcdhPublicKey.fromDerBase64(base64String);
+```
+
+### Deriving a Shared AES Key
+
+Classic ECDH handshake — each peer generates a key pair, exchanges public keys, and derives the same AES key via HKDF-SHA256.
+
+```dart
+// Alice and Bob each generate a key pair
+final alice = await Fortis.ecdh().generateKeyPair();
+final bob = await Fortis.ecdh().generateKeyPair();
+
+// Alice derives the shared AES key (default 256-bit)
+final aliceKey = Fortis.ecdh()
+    .keyDerivation(alice.privateKey)
+    .deriveAesKey(bob.publicKey);
+
+// Bob derives the same key independently
+final bobKey = Fortis.ecdh()
+    .keyDerivation(bob.privateKey)
+    .deriveAesKey(alice.publicKey);
+
+// Use directly with Fortis.aes()
+final cipher = Fortis.aes().gcm().cipher(aliceKey);
+```
+
+### Advanced Derivation
+
+```dart
+// Raw derived bytes with HKDF (configurable size, salt, and info)
+final bytes = Fortis.ecdh()
+    .keySize(512)
+    .keyDerivation(myPrivateKey)
+    .deriveKey(
+      theirPublicKey,
+      salt: sessionSalt,
+      info: utf8.encode('fortis/session-v1'),
+    );
+
+// Raw shared secret (without HKDF) — for protocols with their own KDF
+final secret = Fortis.ecdh()
+    .keyDerivation(myPrivateKey)
+    .deriveSharedSecret(theirPublicKey);
+
+// Pre-shared secret → AES key (static utility)
+final aesKey = EcdhKeyDerivation.hkdfDeriveAesKey(
+  preSharedSecret,
+  salt: sessionSalt,
+  info: utf8.encode('fortis/aes-key'),
+);
 ```
 
 ---
