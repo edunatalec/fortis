@@ -451,4 +451,44 @@ void main() {
       );
     });
   });
+
+  group('OAEP v2.1 — size validation', () {
+    // For 2048-bit RSA + SHA-256, OAEP v2.1 max message = 256 - 2*32 - 2 = 190
+    // bytes. Anything bigger must be rejected at encryption time.
+    test('encrypt with message longer than max throws', () {
+      final encrypter = Fortis.rsa()
+          .padding(RsaPadding.oaep_v2_1)
+          .hash(RsaHash.sha256)
+          .encrypter(pair.publicKey);
+      final tooLong = Uint8List(200); // 200 > 190
+      expect(
+        () => encrypter.encrypt(tooLong),
+        throwsA(isA<FortisEncryptionException>()),
+      );
+    });
+
+    test('decrypt with ciphertext shorter than key size throws', () {
+      final decrypter = Fortis.rsa()
+          .padding(RsaPadding.oaep_v2_1)
+          .hash(RsaHash.sha256)
+          .decrypter(pair.privateKey);
+      final shortCt = Uint8List(100); // 2048-bit RSA key = 256-byte ciphertext
+      expect(
+        () => decrypter.decrypt(shortCt),
+        throwsA(isA<FortisEncryptionException>()),
+      );
+    });
+
+    test('decrypt with ciphertext longer than key size throws', () {
+      final decrypter = Fortis.rsa()
+          .padding(RsaPadding.oaep_v2_1)
+          .hash(RsaHash.sha256)
+          .decrypter(pair.privateKey);
+      final longCt = Uint8List(512);
+      expect(
+        () => decrypter.decrypt(longCt),
+        throwsA(isA<FortisEncryptionException>()),
+      );
+    });
+  });
 }

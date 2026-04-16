@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:fortis/fortis.dart';
+import 'package:pointycastle/asn1.dart';
+import 'package:pointycastle/ecc/api.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -321,6 +323,123 @@ void main() {
 
     test('returns p521 for known OID', () {
       expect(EcdhCurve.fromOid('1.3.132.0.35'), equals(EcdhCurve.p521));
+    });
+  });
+
+  group('malformed DER / PEM — public key', () {
+    Uint8List forgeX509({required String curveOid, required Uint8List point}) {
+      final algorithmId = ASN1Sequence(
+        elements: [
+          ASN1ObjectIdentifier.fromIdentifierString('1.2.840.10045.2.1'),
+          ASN1ObjectIdentifier.fromIdentifierString(curveOid),
+        ],
+      );
+      final spki = ASN1Sequence(
+        elements: [
+          algorithmId,
+          ASN1BitString(stringValues: point),
+        ],
+      );
+      return spki.encode();
+    }
+
+    test('X.509 with unsupported curve OID throws FortisKeyException', () {
+      final der = forgeX509(
+        curveOid: '1.2.840.10045.3.1.99', // valid syntax, unknown curve
+        point: Uint8List.fromList([0x04, 0, 0, 0]),
+      );
+      expect(
+        () => FortisEcdhPublicKey.fromDer(der),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('X.509 with invalid EC point throws FortisKeyException', () {
+      final der = forgeX509(
+        curveOid: '1.2.840.10045.3.1.7', // valid P-256 OID
+        point: Uint8List.fromList([0x04, 0xff, 0xff, 0xff]), // garbage
+      );
+      expect(
+        () => FortisEcdhPublicKey.fromDer(der),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test(
+      'uncompressedPoint with corrupted bytes throws FortisKeyException',
+      () {
+        expect(
+          () => FortisEcdhPublicKey.fromDer(
+            Uint8List.fromList([0x01, 0x02, 0x03]),
+            format: EcdhPublicKeyFormat.uncompressedPoint,
+            curve: EcdhCurve.p256,
+          ),
+          throwsA(isA<FortisKeyException>()),
+        );
+      },
+    );
+  });
+
+  group('malformed DER / PEM — private key', () {
+    test('SEC1 missing curve OID tag throws FortisKeyException', () {
+      // Manually construct a SEC1 body without the [0] explicit context tag
+      // that carries the curve OID.
+      final inner = ASN1Sequence(
+        elements: [
+          ASN1Integer(BigInt.one), // version
+          ASN1OctetString(octets: Uint8List(32)), // privateKey
+          // No [0] ECParameters tag — triggers the missing-OID branch.
+        ],
+      );
+      expect(
+        () => FortisEcdhPrivateKey.fromDer(
+          inner.encode(),
+          format: EcdhPrivateKeyFormat.sec1,
+        ),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('toDer pads small d to field size (d=1)', () {
+      // Forged private key with d=1 — bitLength 1 < 256, so serialising it
+      // must left-pad the scalar to 32 bytes. Exercises _padToFieldSize.
+      final dp = ECDomainParameters('secp256r1');
+      final forged = FortisEcdhPrivateKey(
+        ECPrivateKey(BigInt.one, dp),
+        EcdhCurve.p256,
+      );
+      final der = forged.toDer();
+      expect(der, isNotEmpty);
+    });
+
+    test('PKCS8 with unsupported curve OID throws FortisKeyException', () {
+      // Build a minimal PKCS#8 structure with a bogus curve OID.
+      final algorithmId = ASN1Sequence(
+        elements: [
+          ASN1ObjectIdentifier.fromIdentifierString('1.2.840.10045.2.1'),
+          ASN1ObjectIdentifier.fromIdentifierString('1.2.840.10045.3.1.99'),
+        ],
+      );
+      final innerKey = ASN1Sequence(
+        elements: [
+          ASN1Integer(BigInt.one),
+          ASN1OctetString(octets: Uint8List(32)),
+        ],
+      );
+      final pkcs8 = ASN1Sequence(
+        elements: [
+          ASN1Integer(BigInt.zero),
+          algorithmId,
+          ASN1OctetString(octets: innerKey.encode()),
+        ],
+      );
+      expect(
+        () => FortisEcdhPrivateKey.fromDer(
+          pkcs8.encode(),
+          format: EcdhPrivateKeyFormat.pkcs8,
+        ),
+        throwsA(isA<FortisKeyException>()),
+      );
     });
   });
 }

@@ -267,6 +267,15 @@ void main() {
         throwsA(isA<FortisEncryptionException>()),
       );
     });
+
+    test('CCM ciphertext shorter than IV size throws', () {
+      final cipher = Fortis.aes().ccm().cipher(key);
+      // 5 bytes: less than the default 11-byte CCM IV
+      expect(
+        () => cipher.decrypt(Uint8List(5)),
+        throwsA(isA<FortisEncryptionException>()),
+      );
+    });
   });
 
   group('decrypt() — Map input validation', () {

@@ -127,4 +127,31 @@ void main() {
       });
     }
   });
+
+  group('tagSize()', () {
+    test('tagSize(128) GCM round-trip (default)', () {
+      final c = Fortis.aes().gcm().tagSize(128).cipher(key);
+      final ct = c.encrypt('hello fortis');
+      expect(c.decryptToString(ct), equals('hello fortis'));
+    });
+
+    test('tagSize(96) CCM round-trip', () {
+      final c = Fortis.aes().ccm().tagSize(96).cipher(key);
+      final ct = c.encrypt('hello fortis');
+      expect(c.decryptToString(ct), equals('hello fortis'));
+    });
+
+    test('tagSize(64) CCM round-trip', () {
+      final c = Fortis.aes().ccm().tagSize(64).cipher(key);
+      final ct = c.encrypt('hello fortis');
+      expect(c.decryptToString(ct), equals('hello fortis'));
+    });
+
+    test('tagSize + aad + ivSize chained round-trip (CCM)', () {
+      final aad = Uint8List.fromList([1, 2, 3, 4]);
+      final c = Fortis.aes().ccm().tagSize(96).aad(aad).ivSize(11).cipher(key);
+      final ct = c.encrypt('hello fortis');
+      expect(c.decryptToString(ct), equals('hello fortis'));
+    });
+  });
 }
