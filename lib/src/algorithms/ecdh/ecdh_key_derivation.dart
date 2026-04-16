@@ -34,7 +34,10 @@ class EcdhKeyDerivation {
   final int _keySize;
 
   /// Creates an [EcdhKeyDerivation] with the given [privateKey] and optional
-  /// [keySize] (in bits, defaults to 256).
+  /// [keySize] in bits (default 256).
+  ///
+  /// Prefer [EcdhBuilder.keyDerivation] — it validates [keySize] and keeps
+  /// the fluent API consistent.
   EcdhKeyDerivation({
     required FortisEcdhPrivateKey privateKey,
     int keySize = 256,
@@ -44,7 +47,20 @@ class EcdhKeyDerivation {
   /// Computes the raw ECDH shared secret with the given [publicKey].
   ///
   /// Returns the x-coordinate of the shared point as a byte array,
-  /// left-padded to the curve's field size.
+  /// left-padded to the curve's field size (32 / 48 / 66 bytes for
+  /// P-256 / P-384 / P-521).
+  ///
+  /// ⚠️ **Don't use this directly as a key.** The output is not uniformly
+  /// distributed — feed it through [deriveKey] (HKDF) before using it as
+  /// encryption material. This method is exposed for interop with protocols
+  /// that specify their own KDF.
+  ///
+  /// Example:
+  /// ```dart
+  /// final secret = Fortis.ecdh()
+  ///     .keyDerivation(myPrivateKey)
+  ///     .deriveSharedSecret(theirPublicKey);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the keys use different curves.
   Uint8List deriveSharedSecret(FortisEcdhPublicKey publicKey) {
@@ -65,11 +81,23 @@ class EcdhKeyDerivation {
     );
   }
 
-  /// Derives key bytes from the ECDH shared secret with [publicKey].
+  /// Derives raw key bytes from the ECDH shared secret with [publicKey].
   ///
-  /// Uses HKDF (RFC 5869) with SHA-256 to derive a key of the
-  /// configured size. Optional [salt] and [info] parameters control the
-  /// HKDF derivation.
+  /// Uses HKDF (RFC 5869) with SHA-256 to produce a key of the configured
+  /// size. [salt] should be a random, per-session value when available;
+  /// [info] is an optional application-specific label ("context string")
+  /// that binds the derived key to a purpose.
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = Fortis.ecdh()
+  ///     .keyDerivation(myPrivateKey)
+  ///     .deriveKey(
+  ///       theirPublicKey,
+  ///       salt: randomSalt,
+  ///       info: utf8.encode('fortis/session-v1'),
+  ///     );
+  /// ```
   ///
   /// Throws [FortisKeyException] if the keys use different curves.
   Uint8List deriveKey(
@@ -81,13 +109,26 @@ class EcdhKeyDerivation {
     return hkdf(sharedSecret, keySize: _keySize, salt: salt, info: info);
   }
 
-  /// Derives a [FortisAesKey] from the ECDH shared secret with [publicKey].
+  /// Derives a ready-to-use [FortisAesKey] from the ECDH shared secret
+  /// with [publicKey].
   ///
-  /// Uses HKDF (RFC 5869) with SHA-256. The configured [keySize] must be
-  /// 128, 192, or 256 (valid AES key sizes).
+  /// Uses HKDF (RFC 5869) with SHA-256. The configured `keySize` must be
+  /// 128, 192, or 256 bits (valid AES key sizes).
   ///
-  /// Throws [FortisConfigException] if key size is not a valid AES key size.
-  /// Throws [FortisKeyException] if the keys use different curves.
+  /// Typical handshake flow:
+  /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// // ... exchange public keys with the peer ...
+  /// final aesKey = Fortis.ecdh()
+  ///     .keyDerivation(pair.privateKey)
+  ///     .deriveAesKey(peerPublicKey);
+  ///
+  /// final cipher = Fortis.aes().gcm().cipher(aesKey);
+  /// ```
+  ///
+  /// Throws [FortisConfigException] if the configured key size is not a
+  /// valid AES key size. Throws [FortisKeyException] if the keys use
+  /// different curves.
   FortisAesKey deriveAesKey(
     FortisEcdhPublicKey publicKey, {
     Uint8List? salt,
@@ -99,12 +140,24 @@ class EcdhKeyDerivation {
     );
   }
 
-  /// Derives key bytes from an arbitrary shared secret using HKDF.
+  /// Derives key bytes from an arbitrary shared secret using HKDF-SHA256
+  /// (RFC 5869).
   ///
-  /// This is a static utility for when you already have a shared secret
-  /// (e.g., from [deriveSharedSecret]) and want to derive key bytes.
+  /// Static utility — use when you already hold a shared secret (from
+  /// [deriveSharedSecret], a pre-shared value, or another protocol) and want
+  /// to stretch it into key material.
   ///
   /// [keySize] must be a positive multiple of 8 bits. Defaults to 256.
+  ///
+  /// Example:
+  /// ```dart
+  /// final keyBytes = EcdhKeyDerivation.hkdf(
+  ///   preSharedSecret,
+  ///   keySize: 256,
+  ///   salt: sessionSalt,
+  ///   info: utf8.encode('fortis/hkdf'),
+  /// );
+  /// ```
   ///
   /// Throws [FortisConfigException] if [keySize] is invalid.
   static Uint8List hkdf(
@@ -127,12 +180,23 @@ class EcdhKeyDerivation {
     return output;
   }
 
-  /// Derives a [FortisAesKey] from an arbitrary shared secret using HKDF.
+  /// Derives a [FortisAesKey] from an arbitrary shared secret using
+  /// HKDF-SHA256.
   ///
-  /// This is a static utility for when you already have a shared secret
-  /// (e.g., from [deriveSharedSecret]) and want to derive an AES key.
+  /// Static utility — use when you already hold a shared secret and want a
+  /// ready-to-use AES key.
   ///
   /// [keySize] must be 128, 192, or 256 bits. Defaults to 256.
+  ///
+  /// Example:
+  /// ```dart
+  /// final aesKey = EcdhKeyDerivation.hkdfDeriveAesKey(
+  ///   preSharedSecret,
+  ///   salt: sessionSalt,
+  ///   info: utf8.encode('fortis/aes-key'),
+  /// );
+  /// final cipher = Fortis.aes().gcm().cipher(aesKey);
+  /// ```
   ///
   /// Throws [FortisConfigException] if [keySize] is not a valid AES key size.
   static FortisAesKey hkdfDeriveAesKey(
@@ -147,10 +211,6 @@ class EcdhKeyDerivation {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 void _validateKeySize(int size) {
   if (size <= 0 || size % 8 != 0) {

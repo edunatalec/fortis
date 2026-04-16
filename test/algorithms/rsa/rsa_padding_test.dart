@@ -12,10 +12,6 @@ void main() {
 
   final plaintext = Uint8List.fromList('round-trip test'.codeUnits);
 
-  // ---------------------------------------------------------------------------
-  // Padding round-trips
-  // ---------------------------------------------------------------------------
-
   group('Padding round-trips', () {
     for (final padding in [
       RsaPadding.pkcs1_v1_5,
@@ -54,10 +50,6 @@ void main() {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // Hash round-trips (OAEP v2)
-  // ---------------------------------------------------------------------------
-
   group('Hash round-trips with oaep_v2', () {
     for (final hash in RsaHash.values) {
       test('oaep_v2 + $hash — encrypt → decrypt → equal', () {
@@ -76,10 +68,6 @@ void main() {
       });
     }
   });
-
-  // ---------------------------------------------------------------------------
-  // OAEP v2.1 label support
-  // ---------------------------------------------------------------------------
 
   group('OAEP v2.1 — label support', () {
     test('String label — encrypt → decrypt → equal', () {

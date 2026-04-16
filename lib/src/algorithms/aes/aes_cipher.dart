@@ -12,18 +12,28 @@ import 'aes_mode.dart';
 import 'aes_padding.dart';
 import 'aes_payload.dart';
 
-/// A symmetric AES cipher that can both encrypt and decrypt using the same key.
+/// A symmetric AES cipher that encrypts and decrypts with the same key.
 ///
-/// AES is a symmetric algorithm — the same [FortisAesKey] is used for both
-/// operations. Use [Fortis.aes] to build an instance:
+/// `AesCipher` is a `sealed` hierarchy with three concrete variants — each one
+/// exposed by a different mode builder so hover and autocomplete surface only
+/// the methods that make sense for the chosen mode:
+///
+/// - [AesEcbCipher] — [AesMode.ecb] only. No IV, no authentication.
+///   Built via `Fortis.aes().ecb().cipher(key)`.
+/// - [AesStandardCipher] — [AesMode.cbc], [AesMode.ctr], [AesMode.cfb],
+///   [AesMode.ofb]. Uses a 16-byte IV and returns an [AesPayload] from
+///   [AesStandardCipher.encryptToPayload].
+/// - [AesAuthCipher] — [AesMode.gcm], [AesMode.ccm]. Authenticated encryption
+///   (AEAD) that returns an [AesAuthPayload] (with `tag`) from
+///   [AesAuthCipher.encryptToPayload].
+///
+/// Example (GCM — recommended default):
 ///
 /// ```dart
-/// final cipher = Fortis.aes()
-///   .mode(AesMode.gcm)
-///   .cipher(key);
-///
-/// final ciphertext = cipher.encrypt('hello fortis');
-/// final plaintext = cipher.decryptToString(ciphertext);
+/// final key = await Fortis.aes().generateKey();              // 256-bit
+/// final cipher = Fortis.aes().gcm().cipher(key);             // AesAuthCipher
+/// final payload = cipher.encryptToPayload('hello fortis');    // AesAuthPayload
+/// final plaintext = cipher.decryptToString(payload);          // 'hello fortis'
 /// ```
 ///
 /// ## IV / nonce management
@@ -45,9 +55,7 @@ import 'aes_payload.dart';
 /// - CBC / CTR / CFB / OFB: `[iv (16 bytes) | ciphertext]`
 /// - GCM: `[iv (default 12 bytes) | ciphertext | tag (16 bytes)]`
 /// - CCM: `[nonce (default 11 bytes) | ciphertext | tag (16 bytes)]`
-///
-/// GCM and CCM IV/nonce sizes are configurable via [AesAuthModeBuilder.nonceSize].
-class AesCipher {
+sealed class AesCipher {
   final AesMode _mode;
   final FortisAesKey _key;
   final AesPadding? _padding;
@@ -55,44 +63,19 @@ class AesCipher {
   final int _tagSizeBits;
   final int _nonceSize;
 
-  /// Creates a cipher for block modes (ECB, CBC).
-  AesCipher.block({
+  AesCipher._({
     required AesMode mode,
     required FortisAesKey key,
-    required AesPadding padding,
+    AesPadding? padding,
+    Uint8List? aad,
+    int tagSizeBits = 128,
+    int nonceSize = 0,
   }) : _mode = mode,
        _key = key,
        _padding = padding,
-       _aad = null,
-       _tagSizeBits = 128,
-       _nonceSize = 0;
-
-  /// Creates a cipher for stream modes (CTR, CFB, OFB).
-  AesCipher.stream({required AesMode mode, required FortisAesKey key})
-    : _mode = mode,
-      _key = key,
-      _padding = null,
-      _aad = null,
-      _tagSizeBits = 128,
-      _nonceSize = 0;
-
-  /// Creates a cipher for authenticated modes (GCM, CCM).
-  AesCipher.auth({
-    required AesMode mode,
-    required FortisAesKey key,
-    Uint8List? aad,
-    int tagSizeBits = 128,
-    int? nonceSize,
-  }) : _mode = mode,
-       _key = key,
-       _padding = null,
        _aad = aad,
        _tagSizeBits = tagSizeBits,
-       _nonceSize = nonceSize ?? (mode == AesMode.gcm ? 12 : 11);
-
-  // ──────────────────────────────────────────────
-  // Encrypt
-  // ──────────────────────────────────────────────
+       _nonceSize = nonceSize;
 
   /// Encrypts [plaintext] and returns the combined buffer as raw bytes.
   ///
@@ -100,35 +83,24 @@ class AesCipher {
   /// - [Uint8List]: raw bytes, encrypted as-is.
   /// - [String]: UTF-8 encoded before encryption.
   ///
-  /// The optional [iv] parameter provides the initialization vector or nonce.
+  /// The optional [iv] provides the initialization vector or nonce. When
+  /// omitted, a cryptographically secure random value of the correct size
+  /// is generated automatically — this is the recommended behavior.
   ///
-  /// Behavior by mode:
-  /// - **ECB**: ignored (ECB has no IV).
-  /// - **CBC**: initialization vector — must be exactly 16 bytes. Must be
-  ///   unpredictable (random). Reference: NIST SP 800-38A.
-  /// - **CFB**: initialization vector — must be exactly 16 bytes. Must be
-  ///   unpredictable (random). Reference: NIST SP 800-38A.
-  /// - **OFB**: initialization vector — must be exactly 16 bytes. Must be
-  ///   unique per encryption. Reference: NIST SP 800-38A.
-  /// - **CTR**: initialization vector — must be exactly 16 bytes. Must be
-  ///   unique per encryption. Reference: NIST SP 800-38A.
-  /// - **GCM**: initialization vector — size configured via
-  ///   [AesAuthModeBuilder.nonceSize], default 12 bytes. Must be unique
-  ///   per encryption. Reference: NIST SP 800-38D.
-  /// - **CCM**: nonce — size configured via [AesAuthModeBuilder.nonceSize],
-  ///   default 11 bytes. Must be unique per encryption.
-  ///   Reference: NIST SP 800-38C.
+  /// Required [iv] sizes by mode:
+  /// - ECB: must be `null` (ECB has no IV).
+  /// - CBC / CFB / OFB / CTR: exactly 16 bytes.
+  /// - GCM: size configured via [AesAuthModeBuilder.nonceSize] (default 12).
+  /// - CCM: size configured via [AesAuthModeBuilder.nonceSize] (default 11).
   ///
-  /// If omitted, a cryptographically secure random value of the correct size
-  /// is generated automatically. This is the recommended behavior.
+  /// Example:
+  /// ```dart
+  /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final bytes = cipher.encrypt('hello fortis');
+  /// ```
   ///
   /// Throws [FortisConfigException] if [plaintext] is not a [String] or
-  /// [Uint8List], or if the provided [iv] has the wrong size for the mode.
-  ///
-  /// Buffer layout by mode:
-  /// - GCM/CCM: `[ iv | ciphertext | tag ]`
-  /// - CBC/CTR/CFB/OFB: `[ iv | ciphertext ]`
-  /// - ECB: `[ ciphertext ]`
+  /// [Uint8List], or if [iv] has the wrong size for the mode.
   Uint8List encrypt(Object plaintext, {Uint8List? iv}) {
     return _encryptBytes(_toBytes(plaintext), iv: iv);
   }
@@ -136,77 +108,36 @@ class AesCipher {
   /// Encrypts [plaintext] and returns the result as a Base64-encoded string.
   ///
   /// See [encrypt] for accepted [plaintext] types and [iv] behavior.
+  ///
+  /// Example:
+  /// ```dart
+  /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final base64 = cipher.encryptToString('hello fortis');
+  /// ```
   String encryptToString(Object plaintext, {Uint8List? iv}) {
     return base64Encode(encrypt(plaintext, iv: iv));
   }
 
-  /// Encrypts [plaintext] and returns a structured payload object.
-  ///
-  /// Returns [AesAuthPayload] for authenticated modes (GCM, CCM).
-  /// Returns [AesPayload] for non-authenticated modes (CBC, CTR, CFB, OFB).
-  /// ECB mode does not support this method — use [encrypt] instead.
-  ///
-  /// See [encrypt] for accepted [plaintext] types and [iv] behavior.
-  ///
-  /// Throws [FortisConfigException] if called on ECB mode.
-  Object encryptToPayload(Object plaintext, {Uint8List? iv}) {
-    if (_mode == AesMode.ecb) {
-      throw const FortisConfigException(
-        'encryptToPayload is not supported for ECB mode. '
-        'ECB has no IV and no authentication tag. Use encrypt() instead.',
-      );
-    }
-
-    final buffer = encrypt(plaintext, iv: iv);
-
-    if (_mode == AesMode.gcm || _mode == AesMode.ccm) {
-      final nonceSize = _nonceSize;
-      const tagSize = 16;
-      final ivB64 = base64Encode(buffer.sublist(0, nonceSize));
-      final tag = base64Encode(buffer.sublist(buffer.length - tagSize));
-      final data = base64Encode(
-        buffer.sublist(nonceSize, buffer.length - tagSize),
-      );
-
-      return AesAuthPayload(iv: ivB64, data: data, tag: tag);
-    }
-
-    // CBC, CTR, CFB, OFB — IV is always 16 bytes
-    final ivB64 = base64Encode(buffer.sublist(0, 16));
-    final data = base64Encode(buffer.sublist(16));
-
-    return AesPayload(iv: ivB64, data: data);
-  }
-
-  // ──────────────────────────────────────────────
-  // Decrypt
-  // ──────────────────────────────────────────────
-
   /// Decrypts [input] and returns the plaintext as raw bytes.
   ///
-  /// [input] accepts the following types:
+  /// [input] accepts:
   ///
-  /// - [Uint8List]: the combined buffer in Fortis internal format.
-  ///   Layout: `[ iv | ciphertext ]` or `[ iv | ciphertext | tag ]` depending on mode.
+  /// - [Uint8List]: the combined buffer (see class-level "Buffer layouts").
+  /// - [String]: a Base64-encoded version of the combined buffer.
+  /// - [Map<String, String>]: a map with Base64-encoded fields. Must contain
+  ///   either `'iv'` or `'nonce'` (not both) plus `'data'`. Authenticated
+  ///   modes also require `'tag'`.
+  /// - [AesAuthPayload]: only on [AesAuthCipher] (GCM/CCM).
+  /// - [AesPayload]: only on [AesStandardCipher] (CBC/CTR/CFB/OFB).
   ///
-  /// - [String]: a Base64-encoded string of the combined buffer.
+  /// Example:
+  /// ```dart
+  /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final bytes = cipher.decrypt(ciphertext); // Uint8List, String, Map, or payload
+  /// ```
   ///
-  /// - [Map<String, String>]: a map with separate fields, all Base64-encoded.
-  ///   Must contain either `'iv'` or `'nonce'` (not both) and `'data'`.
-  ///   Authenticated modes (GCM, CCM) must also contain `'tag'`.
-  ///   Throws [FortisConfigException] if:
-  ///   - Both `'iv'` and `'nonce'` are present
-  ///   - Neither `'iv'` nor `'nonce'` is present
-  ///   - `'data'` is missing
-  ///   - `'tag'` is missing for authenticated modes
-  ///
-  /// - [AesAuthPayload]: only valid for authenticated modes (GCM, CCM).
-  ///   Throws [FortisConfigException] if used with non-authenticated modes.
-  ///
-  /// - [AesPayload]: only valid for non-authenticated modes (CBC, CTR, CFB, OFB).
-  ///   Throws [FortisConfigException] if used with authenticated modes.
-  ///
-  /// Throws [FortisConfigException] if [input] is not one of the accepted types.
+  /// Throws [FortisConfigException] for unsupported input types, missing
+  /// fields, or a payload type that doesn't match the cipher's mode.
   Uint8List decrypt(Object input) {
     if (input is Uint8List) {
       return _decryptBytes(input);
@@ -256,29 +187,16 @@ class AesCipher {
   /// Decrypts [input] and returns the plaintext as a UTF-8 decoded [String].
   ///
   /// See [decrypt] for accepted [input] types and validation rules.
+  ///
+  /// Example:
+  /// ```dart
+  /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final text = cipher.decryptToString(ciphertext);
+  /// ```
   String decryptToString(Object input) {
     return utf8.decode(decrypt(input));
   }
 
-  // ──────────────────────────────────────────────
-  // Internal — encrypt core
-  // ──────────────────────────────────────────────
-
-  /// Encrypts [plaintext] bytes and returns ciphertext with the IV/nonce prepended.
-  ///
-  /// The optional [iv] parameter allows callers to supply a specific IV or nonce —
-  /// useful for interoperability with external systems that require a deterministic
-  /// value. When omitted, a cryptographically random value is generated automatically.
-  ///
-  /// The required IV/nonce size is determined by the mode and the configured nonce
-  /// size (see [AesAuthModeBuilder.nonceSize]).
-  ///
-  /// Throws [FortisConfigException] if:
-  /// - [AesPadding.noPadding] is used with data that is not a multiple of 16.
-  /// - [iv] is provided with the wrong size for the mode.
-  /// - [iv] is provided for ECB mode.
-  ///
-  /// Throws [FortisEncryptionException] if encryption fails.
   Uint8List _encryptBytes(Uint8List plaintext, {Uint8List? iv}) {
     try {
       return switch (_mode) {
@@ -299,14 +217,6 @@ class AesCipher {
     }
   }
 
-  // ──────────────────────────────────────────────
-  // Internal — decrypt core
-  // ──────────────────────────────────────────────
-
-  /// Decrypts a combined [ciphertext] buffer and returns the original plaintext.
-  ///
-  /// Throws [FortisEncryptionException] if decryption fails, the auth tag
-  /// is invalid, or the AAD does not match what was used during encryption.
   Uint8List _decryptBytes(Uint8List ciphertext) {
     try {
       return switch (_mode) {
@@ -327,12 +237,6 @@ class AesCipher {
     }
   }
 
-  /// Parses [map] and assembles it into the combined buffer expected by [_decryptBytes].
-  ///
-  /// Validates:
-  /// - Exactly one of `'iv'` or `'nonce'` is present (not both, not neither)
-  /// - `'data'` is present
-  /// - `'tag'` is present for authenticated modes (GCM, CCM)
   Uint8List _fromMap(Map<String, String> map) {
     final hasIv = map.containsKey('iv');
     final hasNonce = map.containsKey('nonce');
@@ -374,10 +278,6 @@ class AesCipher {
 
     return Uint8List.fromList([...ivBytes, ...dataBytes]);
   }
-
-  // ──────────────────────────────────────────────
-  // Encrypt — block modes
-  // ──────────────────────────────────────────────
 
   Uint8List _encryptEcb(Uint8List plaintext, Uint8List? iv) {
     if (iv != null) {
@@ -427,10 +327,6 @@ class AesCipher {
     return _prepend(resolvedIv, cipher.process(plaintext));
   }
 
-  // ──────────────────────────────────────────────
-  // Encrypt — stream modes
-  // ──────────────────────────────────────────────
-
   Uint8List _encryptCtr(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(16, iv, 'CTR');
     final cipher = CTRStreamCipher(AESEngine());
@@ -467,10 +363,6 @@ class AesCipher {
     return _prepend(resolvedIv, _processStreamBlockCipher(cipher, plaintext));
   }
 
-  // ──────────────────────────────────────────────
-  // Encrypt — authenticated modes
-  // ──────────────────────────────────────────────
-
   Uint8List _encryptGcm(Uint8List plaintext, Uint8List? iv) {
     final resolvedIv = _resolveIv(_nonceSize, iv, 'GCM'); // NIST SP 800-38D
     final cipher = GCMBlockCipher(AESEngine());
@@ -505,10 +397,6 @@ class AesCipher {
 
     return _prepend(nonce, cipher.process(plaintext));
   }
-
-  // ──────────────────────────────────────────────
-  // Decrypt — block modes
-  // ──────────────────────────────────────────────
 
   Uint8List _decryptEcb(Uint8List ciphertext) {
     final padding = _padding!;
@@ -545,10 +433,6 @@ class AesCipher {
 
     return cipher.process(body);
   }
-
-  // ──────────────────────────────────────────────
-  // Decrypt — stream modes
-  // ──────────────────────────────────────────────
 
   Uint8List _decryptCtr(Uint8List ciphertext) {
     if (ciphertext.length < 16) {
@@ -604,10 +488,6 @@ class AesCipher {
 
     return _processStreamBlockCipher(cipher, body);
   }
-
-  // ──────────────────────────────────────────────
-  // Decrypt — authenticated modes
-  // ──────────────────────────────────────────────
 
   Uint8List _decryptGcm(Uint8List ciphertext) {
     if (ciphertext.length < _nonceSize) {
@@ -673,14 +553,6 @@ class AesCipher {
     }
   }
 
-  // ──────────────────────────────────────────────
-  // Helpers
-  // ──────────────────────────────────────────────
-
-  /// Converts [plaintext] to [Uint8List].
-  ///
-  /// Accepts [Uint8List] or [String] (UTF-8 encoded).
-  /// Throws [FortisConfigException] for any other type.
   Uint8List _toBytes(Object plaintext) {
     if (plaintext is Uint8List) return plaintext;
 
@@ -694,10 +566,6 @@ class AesCipher {
     );
   }
 
-  /// Resolves the initialization vector (IV) for block/stream/GCM modes.
-  ///
-  /// If [provided] is non-null, validates its size against [expectedSize].
-  /// If null, generates a cryptographically secure random byte array of [expectedSize].
   Uint8List _resolveIv(int expectedSize, Uint8List? provided, String mode) {
     if (provided != null && provided.length != expectedSize) {
       throw FortisConfigException(
@@ -708,10 +576,6 @@ class AesCipher {
     return provided ?? _randomBytes(expectedSize);
   }
 
-  /// Resolves the nonce for CCM mode.
-  ///
-  /// If [provided] is non-null, validates its size against [expectedSize].
-  /// If null, generates a cryptographically secure random byte array of [expectedSize].
   Uint8List _resolveNonce(int expectedSize, Uint8List? provided, String mode) {
     if (provided != null && provided.length != expectedSize) {
       throw FortisConfigException(
@@ -722,11 +586,6 @@ class AesCipher {
     return provided ?? _randomBytes(expectedSize);
   }
 
-  /// Processes [input] with [cipher] block by block, without padding.
-  ///
-  /// Full blocks are processed directly. The last partial block is
-  /// zero-padded, processed, and only the necessary bytes are copied —
-  /// ensuring the output has the same size as the input.
   Uint8List _processStreamBlockCipher(BlockCipher cipher, Uint8List input) {
     const blockSize = 16;
     final output = Uint8List(input.length);
@@ -770,6 +629,161 @@ class AesCipher {
       Uint8List(prefix.length + data.length)
         ..setAll(0, prefix)
         ..setAll(prefix.length, data);
+}
+
+/// A cipher for AES in [AesMode.ecb] mode.
+///
+/// ⚠️ ECB is insecure for most use cases — identical plaintext blocks produce
+/// identical ciphertext blocks, revealing patterns. Only use for legacy
+/// interoperability. Prefer [AesAuthCipher] (GCM) in new designs.
+///
+/// ECB does not use an IV and does not support payload encoding, so
+/// `encryptToPayload` is intentionally absent from this class.
+///
+/// Built via:
+/// ```dart
+/// final cipher = Fortis.aes().ecb().cipher(key); // AesEcbCipher
+/// final ciphertext = cipher.encrypt(dataAlignedTo16Bytes);
+/// ```
+final class AesEcbCipher extends AesCipher {
+  /// Creates a cipher for AES-ECB with the given [padding]. Prefer the
+  /// builder: `Fortis.aes().ecb().padding(AesPadding.pkcs7).cipher(key)`.
+  ///
+  /// Example:
+  /// ```dart
+  /// final cipher = AesEcbCipher(key: key, padding: AesPadding.pkcs7);
+  /// ```
+  AesEcbCipher({required super.key, required AesPadding padding})
+    : super._(mode: AesMode.ecb, padding: padding);
+}
+
+/// A cipher for AES modes that use an IV but do not authenticate:
+/// [AesMode.cbc], [AesMode.ctr], [AesMode.cfb], [AesMode.ofb].
+///
+/// These modes guarantee confidentiality but not integrity. For authenticated
+/// encryption (recommended for most use cases) see [AesAuthCipher].
+///
+/// Built via the matching mode builder:
+/// ```dart
+/// final cipher = Fortis.aes().cbc().cipher(key); // AesStandardCipher
+/// final payload = cipher.encryptToPayload('hello'); // AesPayload
+/// final plaintext = cipher.decryptToString(payload);
+/// ```
+///
+/// This class is the only place where [encryptToPayload] returns [AesPayload]
+/// (as opposed to [AesAuthPayload] on [AesAuthCipher]), so the return type is
+/// statically inferred — no cast required.
+final class AesStandardCipher extends AesCipher {
+  /// Creates a standard (non-authenticated) AES cipher for CBC, CTR, CFB,
+  /// or OFB. Prefer the builder:
+  ///
+  /// ```dart
+  /// final cipher = Fortis.aes().cbc().cipher(key); // or .ctr() / .cfb() / .ofb()
+  /// ```
+  ///
+  /// [padding] is required for [AesMode.cbc] and must be `null` for stream
+  /// modes ([AesMode.ctr], [AesMode.cfb], [AesMode.ofb]).
+  AesStandardCipher({required super.mode, required super.key, super.padding})
+    : assert(
+        mode == AesMode.cbc ||
+            mode == AesMode.ctr ||
+            mode == AesMode.cfb ||
+            mode == AesMode.ofb,
+        'AesStandardCipher only supports CBC, CTR, CFB, or OFB',
+      ),
+      super._();
+
+  /// Encrypts [plaintext] and returns a structured [AesPayload].
+  ///
+  /// The payload carries the IV and ciphertext as Base64 strings — handy for
+  /// transports that want separate fields (JSON, DB columns, headers).
+  ///
+  /// Example:
+  /// ```dart
+  /// final cipher = Fortis.aes().cbc().cipher(key); // AesStandardCipher
+  /// final payload = cipher.encryptToPayload('hello'); // AesPayload (no cast!)
+  /// final json = jsonEncode(payload.toMap());
+  /// ```
+  ///
+  /// See [encrypt] for accepted [plaintext] types and [iv] behavior.
+  AesPayload encryptToPayload(Object plaintext, {Uint8List? iv}) {
+    final buffer = encrypt(plaintext, iv: iv);
+
+    // CBC, CTR, CFB, OFB — IV is always 16 bytes
+    final ivB64 = base64Encode(buffer.sublist(0, 16));
+    final data = base64Encode(buffer.sublist(16));
+
+    return AesPayload(iv: ivB64, data: data);
+  }
+}
+
+/// A cipher for AES authenticated modes: [AesMode.gcm], [AesMode.ccm].
+///
+/// Authenticated Encryption with Associated Data (AEAD) provides both
+/// confidentiality and integrity. On decrypt, Fortis verifies the auth tag
+/// automatically and throws [FortisEncryptionException] if the ciphertext or
+/// AAD has been tampered with.
+///
+/// Built via the matching mode builder:
+/// ```dart
+/// final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
+/// final payload = cipher.encryptToPayload('hello'); // AesAuthPayload
+/// print(payload.tag);                              // ✓ typed, no cast
+/// ```
+///
+/// Use [AesAuthModeBuilder.aad], [AesAuthModeBuilder.tagSize], and
+/// [AesAuthModeBuilder.nonceSize] to customize before building.
+final class AesAuthCipher extends AesCipher {
+  /// Creates an authenticated AES cipher for GCM or CCM. Prefer the
+  /// builder:
+  ///
+  /// ```dart
+  /// final cipher = Fortis.aes().gcm().cipher(key); // or .ccm()
+  /// ```
+  ///
+  /// Defaults: [tagSizeBits] = 128. [nonceSize] defaults to 12 bytes for
+  /// GCM and 11 bytes for CCM when `null`.
+  AesAuthCipher({
+    required super.mode,
+    required super.key,
+    super.aad,
+    super.tagSizeBits = 128,
+    int? nonceSize,
+  }) : assert(
+         mode == AesMode.gcm || mode == AesMode.ccm,
+         'AesAuthCipher only supports GCM or CCM',
+       ),
+       super._(nonceSize: nonceSize ?? (mode == AesMode.gcm ? 12 : 11));
+
+  /// Encrypts [plaintext] and returns a structured [AesAuthPayload].
+  ///
+  /// The payload carries the IV/nonce, ciphertext, and authentication tag
+  /// as separate Base64 fields — matching the wire format used by .NET,
+  /// Java, and OpenSSL libraries.
+  ///
+  /// Example:
+  /// ```dart
+  /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final payload = cipher.encryptToPayload('hello fortis');
+  ///
+  /// // Send as JSON to a backend:
+  /// final body = jsonEncode(payload.toMap(ivKey: 'nonce'));
+  /// ```
+  ///
+  /// See [encrypt] for accepted [plaintext] types and [iv] behavior.
+  AesAuthPayload encryptToPayload(Object plaintext, {Uint8List? iv}) {
+    final buffer = encrypt(plaintext, iv: iv);
+
+    final nonceSize = _nonceSize;
+    const tagSize = 16;
+    final ivB64 = base64Encode(buffer.sublist(0, nonceSize));
+    final tag = base64Encode(buffer.sublist(buffer.length - tagSize));
+    final data = base64Encode(
+      buffer.sublist(nonceSize, buffer.length - tagSize),
+    );
+
+    return AesAuthPayload(iv: ivB64, data: data, tag: tag);
+  }
 }
 
 /// No-op padding implementation for [AesPadding.noPadding].

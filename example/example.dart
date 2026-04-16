@@ -15,8 +15,6 @@ Future<void> main() async {
   await rsaKeySerializationExample();
 }
 
-// ── AES Key Generation & Serialization ─────────────────────────────────────
-
 Future<void> aesKeyExample() async {
   final key128 = await Fortis.aes().keySize(128).generateKey();
   final key192 = await Fortis.aes().keySize(192).generateKey();
@@ -35,8 +33,6 @@ Future<void> aesKeyExample() async {
   final restored = FortisAesKey.fromBase64(b64);
   print('Key restored: ${restored.keySize}-bit');
 }
-
-// ── AES Encryption — Block, Stream & ECB Modes ────────────────────────────
 
 Future<void> aesEncryptionExample() async {
   final key = await Fortis.aes().keySize(256).generateKey();
@@ -84,8 +80,6 @@ Future<void> aesEncryptionExample() async {
   print('Cross-cipher decrypt: ${cipher2.decryptToString(ciphertext)}');
 }
 
-// ── AES Authenticated Encryption (GCM & CCM) ──────────────────────────────
-
 Future<void> aesAuthenticatedExample() async {
   final key = await Fortis.aes().keySize(256).generateKey();
 
@@ -127,23 +121,24 @@ Future<void> aesAuthenticatedExample() async {
   }
 }
 
-// ── AES Payloads ───────────────────────────────────────────────────────────
-
 Future<void> aesPayloadExample() async {
   final key = await Fortis.aes().keySize(256).generateKey();
 
-  // Authenticated payload (GCM/CCM) — has iv, data, tag
-  final gcm = Fortis.aes().mode(AesMode.gcm).cipher(key);
-  final authPayload = gcm.encryptToPayload('hello') as AesAuthPayload;
+  // Authenticated payload (GCM/CCM) — has iv, data, tag.
+  // .gcm() returns AesAuthCipher, so encryptToPayload() is statically
+  // typed as AesAuthPayload — no cast required.
+  final gcm = Fortis.aes().gcm().cipher(key);
+  final authPayload = gcm.encryptToPayload('hello');
   print('Auth payload iv: ${authPayload.iv}');
   print('Auth payload data: ${authPayload.data}');
   print('Auth payload tag: ${authPayload.tag}');
   print('Auth payload map: ${authPayload.toMap()}');
   print('Auth payload map (nonce): ${authPayload.toMap(ivKey: 'nonce')}');
 
-  // Non-authenticated payload (CBC/CTR/CFB/OFB) — has iv, data
-  final cbc = Fortis.aes().mode(AesMode.cbc).cipher(key);
-  final payload = cbc.encryptToPayload('hello') as AesPayload;
+  // Non-authenticated payload (CBC/CTR/CFB/OFB) — has iv, data.
+  // .cbc() returns AesStandardCipher → encryptToPayload() is AesPayload.
+  final cbc = Fortis.aes().cbc().cipher(key);
+  final payload = cbc.encryptToPayload('hello');
   print('Payload iv: ${payload.iv}');
   print('Payload data: ${payload.data}');
   print('Payload map: ${payload.toMap()}');
@@ -153,11 +148,9 @@ Future<void> aesPayloadExample() async {
   print('Decrypt from AesPayload: ${cbc.decryptToString(payload)}');
 }
 
-// ── AES Decrypt Input Formats ──────────────────────────────────────────────
-
 Future<void> aesDecryptInputFormatsExample() async {
   final key = await Fortis.aes().keySize(256).generateKey();
-  final cipher = Fortis.aes().mode(AesMode.gcm).cipher(key);
+  final cipher = Fortis.aes().gcm().cipher(key);
   const plaintext = 'hello fortis';
 
   // From Uint8List
@@ -169,7 +162,7 @@ Future<void> aesDecryptInputFormatsExample() async {
   print('From Base64: ${cipher.decryptToString(b64)}');
 
   // From Map with 'iv' key
-  final payload = cipher.encryptToPayload(plaintext) as AesAuthPayload;
+  final payload = cipher.encryptToPayload(plaintext);
   print('From Map (iv): ${cipher.decryptToString(payload.toMap())}');
 
   // From Map with 'nonce' key
@@ -189,8 +182,6 @@ Future<void> aesDecryptInputFormatsExample() async {
     'Interop (.NET-style): ${cipher.decryptToString({'nonce': iv, 'data': data, 'tag': tag})}',
   );
 }
-
-// ── RSA Basic Encryption & Decryption ──────────────────────────────────────
 
 Future<void> rsaBasicExample() async {
   final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
@@ -218,8 +209,6 @@ Future<void> rsaBasicExample() async {
   final b64 = encrypter.encryptToString('hello fortis');
   print('RSA Base64 round-trip: ${decrypter.decryptToString(b64)}');
 }
-
-// ── RSA Padding × Hash Matrix ──────────────────────────────────────────────
 
 Future<void> rsaPaddingHashMatrixExample() async {
   final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
@@ -284,8 +273,6 @@ Future<void> rsaPaddingHashMatrixExample() async {
   }
 }
 
-// ── RSA OAEP v2.1 Label Support ────────────────────────────────────────────
-
 Future<void> rsaLabelExample() async {
   final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
   final plaintext = Uint8List.fromList('round-trip test'.codeUnits);
@@ -319,8 +306,6 @@ Future<void> rsaLabelExample() async {
   final pt = decrypterBytes.decrypt(ct);
   print('OAEP v2.1 Uint8List label: ${String.fromCharCodes(pt)}');
 }
-
-// ── RSA Key Serialization ──────────────────────────────────────────────────
 
 Future<void> rsaKeySerializationExample() async {
   final pair = await Fortis.rsa().keySize(2048).generateKeyPair();

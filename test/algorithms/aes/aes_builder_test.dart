@@ -11,8 +11,6 @@ void main() {
     key = await Fortis.aes().keySize(256).generateKey();
   });
 
-  // ── FortisLog ─────────────────────────────────────────────────────────────
-
   group('FortisLog', () {
     test('info() does not throw', () {
       expect(() => FortisLog.info('test info message'), returnsNormally);
@@ -22,8 +20,6 @@ void main() {
       expect(() => FortisLog.warn('test warning message'), returnsNormally);
     });
   });
-
-  // ── nonceSize() — GCM validation ─────────────────────────────────────────
 
   group('nonceSize() — GCM validation', () {
     AesAuthModeBuilder gcm() =>
@@ -54,8 +50,6 @@ void main() {
       expect(() => gcm().nonceSize(-1), throwsA(isA<FortisConfigException>()));
     });
   });
-
-  // ── nonceSize() — CCM validation ─────────────────────────────────────────
 
   group('nonceSize() — CCM validation', () {
     AesAuthModeBuilder ccm() =>
@@ -89,8 +83,6 @@ void main() {
   //   (Fortis.aes().mode(AesMode.cbc) as AesBlockModeBuilder).nonceSize(12);
   //   (Fortis.aes().mode(AesMode.ctr) as AesStreamModeBuilder).nonceSize(12);
 
-  // ── nonceSize() — GCM round-trip ─────────────────────────────────────────
-
   group('nonceSize() — GCM round-trip', () {
     AesCipher gcmCipher(int size) =>
         (Fortis.aes().mode(AesMode.gcm) as AesAuthModeBuilder)
@@ -123,8 +115,6 @@ void main() {
       );
     });
   });
-
-  // ── nonceSize() — CCM round-trip ─────────────────────────────────────────
 
   group('nonceSize() — CCM round-trip', () {
     for (final size in [7, 11, 13]) {

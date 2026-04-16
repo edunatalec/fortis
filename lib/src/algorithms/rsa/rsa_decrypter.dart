@@ -14,17 +14,19 @@ import 'rsa_private_key.dart';
 
 /// Decrypts data using an RSA private key.
 ///
-/// Build an instance via [RsaBuilder]:
+/// Build via [RsaBuilder]:
 /// ```dart
 /// final decrypter = Fortis.rsa()
 ///     .padding(RsaPadding.oaep_v2)
 ///     .hash(RsaHash.sha256)
 ///     .decrypter(pair.privateKey);
 ///
-/// // Decrypt raw bytes or a Base64 String — both are accepted.
-/// final plaintext = decrypter.decrypt(ciphertext); // returns Uint8List
-/// final text      = decrypter.decryptToString(ciphertext); // returns UTF-8 String
+/// final plaintext = decrypter.decrypt(ciphertext);         // Uint8List
+/// final text      = decrypter.decryptToString(ciphertext); // UTF-8 String
 /// ```
+///
+/// The [padding], [hash], and `label` (for OAEP v2.1) must match those used
+/// by the encrypter; otherwise [FortisEncryptionException] is thrown.
 class RsaDecrypter {
   /// The private key used to decrypt.
   final FortisRsaPrivateKey key;
@@ -38,9 +40,16 @@ class RsaDecrypter {
   /// The label for OAEP v2.1 (null for other paddings).
   final Uint8List? label;
 
-  /// Creates an [RsaDecrypter].
+  /// Creates an [RsaDecrypter] directly. Prefer [RsaBuilder] — this
+  /// constructor is public only for advanced scenarios.
   ///
-  /// Use [RsaBuilder] to obtain an instance.
+  /// Example:
+  /// ```dart
+  /// final decrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2)
+  ///     .hash(RsaHash.sha256)
+  ///     .decrypter(pair.privateKey);
+  /// ```
   const RsaDecrypter({
     required this.key,
     required this.padding,
@@ -54,8 +63,14 @@ class RsaDecrypter {
   /// - [Uint8List]: raw ciphertext bytes.
   /// - [String]: a Base64-encoded ciphertext string.
   ///
-  /// Throws [FortisConfigException] if [input] is not a [String] or [Uint8List].
-  /// Throws [FortisEncryptionException] if decryption fails (wrong key, corrupted data, etc.).
+  /// Example:
+  /// ```dart
+  /// final plaintext = decrypter.decrypt(ciphertext);
+  /// ```
+  ///
+  /// Throws [FortisConfigException] if [input] is not a [String] or
+  /// [Uint8List]. Throws [FortisEncryptionException] if decryption fails
+  /// (wrong key, corrupted data, mismatched padding/hash/label, etc.).
   Uint8List decrypt(Object input) {
     if (input is Uint8List) return _decryptBytes(input);
     if (input is String) return _decryptBytes(base64Decode(input));
@@ -69,11 +84,12 @@ class RsaDecrypter {
   /// Decrypts [input] and returns the plaintext as a UTF-8 decoded [String].
   ///
   /// See [decrypt] for accepted [input] types.
+  ///
+  /// Example:
+  /// ```dart
+  /// final text = decrypter.decryptToString(ciphertext);
+  /// ```
   String decryptToString(Object input) => utf8.decode(decrypt(input));
-
-  // ---------------------------------------------------------------------------
-  // Internal dispatch
-  // ---------------------------------------------------------------------------
 
   /// Decrypts raw [ciphertext] bytes and returns the plaintext.
   ///
@@ -92,10 +108,6 @@ class RsaDecrypter {
       throw FortisEncryptionException('Decryption failed: $e');
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Padding implementations
-  // ---------------------------------------------------------------------------
 
   Uint8List _decryptPkcs1v15(Uint8List ciphertext) {
     final cipher = PKCS1Encoding(RSAEngine())

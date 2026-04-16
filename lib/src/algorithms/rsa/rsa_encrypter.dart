@@ -16,17 +16,33 @@ import 'rsa_public_key.dart';
 
 /// Encrypts data using an RSA public key.
 ///
-/// Build an instance via [RsaBuilder]:
+/// Build via [RsaBuilder]:
 /// ```dart
 /// final encrypter = Fortis.rsa()
 ///     .padding(RsaPadding.oaep_v2)
 ///     .hash(RsaHash.sha256)
 ///     .encrypter(pair.publicKey);
 ///
-/// // Encrypt raw bytes or a String — both are accepted.
-/// final ciphertext = encrypter.encrypt(plaintext); // returns Uint8List
-/// final base64    = encrypter.encryptToString(plaintext); // returns Base64 String
+/// final ciphertext = encrypter.encrypt('hello fortis');       // Uint8List
+/// final base64     = encrypter.encryptToString('hello fortis'); // Base64
 /// ```
+///
+/// ## Maximum plaintext size
+///
+/// RSA is a **small-payload cipher** — it can only encrypt as many bytes as
+/// the key size minus padding overhead. Encrypting a longer message throws
+/// [FortisEncryptionException].
+///
+/// | Padding        | Max plaintext bytes                                  |
+/// |----------------|------------------------------------------------------|
+/// | OAEP (any)     | `keyBytes − 2·hashBytes − 2`                         |
+/// | PKCS#1 v1.5    | `keyBytes − 11`                                      |
+///
+/// Examples: RSA-2048 (256 bytes) + SHA-256 → **190 bytes**. RSA-2048 +
+/// SHA-512 → **62 bytes**. RSA-4096 + SHA-256 → **446 bytes**.
+///
+/// For larger payloads, use hybrid encryption: generate an AES key, encrypt
+/// the payload with AES, then wrap the AES key with RSA.
 class RsaEncrypter {
   /// The public key used to encrypt.
   final FortisRsaPublicKey key;
@@ -40,9 +56,17 @@ class RsaEncrypter {
   /// The label for OAEP v2.1 (null for other paddings).
   final Uint8List? label;
 
-  /// Creates an [RsaEncrypter].
+  /// Creates an [RsaEncrypter] directly. Prefer [RsaBuilder] — this
+  /// constructor is public only for advanced scenarios where you already
+  /// have the padding/hash/label in hand.
   ///
-  /// Use [RsaBuilder] to obtain an instance.
+  /// Example:
+  /// ```dart
+  /// final encrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2)
+  ///     .hash(RsaHash.sha256)
+  ///     .encrypter(pair.publicKey);
+  /// ```
   const RsaEncrypter({
     required this.key,
     required this.padding,
@@ -56,7 +80,16 @@ class RsaEncrypter {
   /// - [Uint8List]: raw bytes, encrypted as-is.
   /// - [String]: UTF-8 encoded before encryption.
   ///
-  /// Throws [FortisConfigException] if [plaintext] is not a [String] or [Uint8List].
+  /// See the class-level "Maximum plaintext size" table for length limits.
+  ///
+  /// Example:
+  /// ```dart
+  /// final ct = encrypter.encrypt('hello fortis');
+  /// ```
+  ///
+  /// Throws [FortisConfigException] if [plaintext] is not a [String] or
+  /// [Uint8List]. Throws [FortisEncryptionException] if encryption fails
+  /// (e.g. plaintext exceeds the max size for the configured key/hash).
   Uint8List encrypt(Object plaintext) {
     _warnIfNeeded();
 
@@ -76,14 +109,15 @@ class RsaEncrypter {
     }
   }
 
-  /// Encrypts [plaintext] and returns the ciphertext as a Base64-encoded string.
+  /// Encrypts [plaintext] and returns the ciphertext as a Base64 string.
   ///
-  /// See [encrypt] for accepted [plaintext] types.
+  /// See [encrypt] for accepted [plaintext] types and limits.
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = encrypter.encryptToString('hello fortis');
+  /// ```
   String encryptToString(Object plaintext) => base64Encode(encrypt(plaintext));
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
 
   /// Converts [plaintext] to [Uint8List].
   ///
@@ -98,10 +132,6 @@ class RsaEncrypter {
       'Expected String or Uint8List.',
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Padding implementations
-  // ---------------------------------------------------------------------------
 
   Uint8List _encryptPkcs1v15(Uint8List plaintext) {
     final cipher = PKCS1Encoding(RSAEngine())
@@ -133,10 +163,6 @@ class RsaEncrypter {
       rng: Random.secure(),
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Warnings
-  // ---------------------------------------------------------------------------
 
   void _warnIfNeeded() {
     final bitLength = key.key.modulus?.bitLength ?? 0;

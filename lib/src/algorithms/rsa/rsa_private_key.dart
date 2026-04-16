@@ -14,23 +14,41 @@ const _pkcs1Footer = '-----END RSA PRIVATE KEY-----';
 
 /// An RSA private key used for decryption.
 ///
-/// This is a pure data container wrapping PointyCastle's [RSAPrivateKey].
-/// Serialization is available via [toPem] / [toDer].
-/// To decrypt data, build an [RsaDecrypter] via [RsaBuilder].
+/// Pure data container wrapping PointyCastle's [RSAPrivateKey]. Serialization
+/// is available via [toPem], [toDer], and [toDerBase64]; import via
+/// [fromPem], [fromDer], and [fromDerBase64]. To decrypt data, build an
+/// [RsaDecrypter] via [RsaBuilder].
+///
+/// ⚠️ Handle with care — treat the output of [toPem] / [toDer] /
+/// [toDerBase64] as a secret.
+///
+/// Example:
+/// ```dart
+/// final pair = await Fortis.rsa().generateKeyPair();
+/// final pem = pair.privateKey.toPem();
+/// final restored = FortisRsaPrivateKey.fromPem(pem);
+/// ```
 class FortisRsaPrivateKey {
   /// The underlying PointyCastle key.
   final RSAPrivateKey key;
 
-  /// Creates a [FortisRsaPrivateKey] from the given PointyCastle [key].
+  /// Creates a [FortisRsaPrivateKey] from a raw PointyCastle [RSAPrivateKey].
+  ///
+  /// You usually don't call this directly — prefer the `from*` factories or
+  /// [RsaBuilder.generateKeyPair].
   const FortisRsaPrivateKey(this.key);
-
-  // ---------------------------------------------------------------------------
-  // Serialization
-  // ---------------------------------------------------------------------------
 
   /// Encodes this key as a PEM string.
   ///
-  /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
+  /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo) —
+  /// the widely-supported modern default. Use [RsaPrivateKeyFormat.pkcs1]
+  /// for legacy interop.
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = pair.privateKey.toPem(); // -----BEGIN PRIVATE KEY-----
+  /// final pem1 = pair.privateKey.toPem(format: RsaPrivateKeyFormat.pkcs1);
+  /// ```
   String toPem({RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8}) {
     final der = toDer(format: format);
     final b64 = base64.encode(der);
@@ -39,9 +57,15 @@ class FortisRsaPrivateKey {
     return '$header\n$wrapped\n$footer';
   }
 
-  /// Encodes this key as DER bytes.
+  /// Encodes this key as DER bytes (binary ASN.1).
   ///
   /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = pair.privateKey.toDer();
+  /// File('priv.der').writeAsBytesSync(bytes);
+  /// ```
   Uint8List toDer({RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8}) {
     return switch (format) {
       RsaPrivateKeyFormat.pkcs8 => _encodePkcs8(),
@@ -51,21 +75,30 @@ class FortisRsaPrivateKey {
 
   /// Exports the private key as a Base64-encoded DER string.
   ///
-  /// This is a convenience wrapper over [toDer]. The resulting string is
-  /// DER encoded as Base64, not PEM.
-  /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
+  /// Convenience wrapper over [toDer]. Handy for sealed storage in secret
+  /// managers that accept strings. [format] defaults to
+  /// [RsaPrivateKeyFormat.pkcs8].
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = pair.privateKey.toDerBase64();
+  /// secretStore.write('rsa_priv_b64', b64);
+  /// ```
   String toDerBase64({
     RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8,
   }) => base64Encode(toDer(format: format));
 
-  // ---------------------------------------------------------------------------
-  // Deserialization
-  // ---------------------------------------------------------------------------
-
   /// Imports a private key from a PEM string.
   ///
-  /// [format] must match the PEM header present in [pem].
-  /// Defaults to [RsaPrivateKeyFormat.pkcs8].
+  /// [format] must match the PEM header inside [pem]:
+  /// - `-----BEGIN PRIVATE KEY-----` → [RsaPrivateKeyFormat.pkcs8] (default)
+  /// - `-----BEGIN RSA PRIVATE KEY-----` → [RsaPrivateKeyFormat.pkcs1]
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = File('private.pem').readAsStringSync();
+  /// final key = FortisRsaPrivateKey.fromPem(pem);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the PEM is malformed.
   factory FortisRsaPrivateKey.fromPem(
@@ -83,8 +116,14 @@ class FortisRsaPrivateKey {
 
   /// Imports a private key from a Base64-encoded DER string.
   ///
-  /// This is a convenience wrapper over [fromDer]. The input must be a plain
-  /// Base64 string (not PEM). [format] defaults to [RsaPrivateKeyFormat.pkcs8].
+  /// Convenience wrapper over [fromDer]. Input must be plain Base64 (no PEM
+  /// header/footer). [format] defaults to [RsaPrivateKeyFormat.pkcs8].
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = secretStore.read('rsa_priv_b64');
+  /// final key = FortisRsaPrivateKey.fromDerBase64(b64);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the string is not valid Base64 or DER.
   factory FortisRsaPrivateKey.fromDerBase64(
@@ -101,10 +140,16 @@ class FortisRsaPrivateKey {
     }
   }
 
-  /// Imports a private key from DER bytes.
+  /// Imports a private key from DER bytes (binary ASN.1).
   ///
-  /// [format] must match the DER structure provided.
-  /// Defaults to [RsaPrivateKeyFormat.pkcs8].
+  /// [format] must match the DER structure. Defaults to
+  /// [RsaPrivateKeyFormat.pkcs8].
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = File('priv.der').readAsBytesSync();
+  /// final key = FortisRsaPrivateKey.fromDer(bytes);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the DER is malformed.
   factory FortisRsaPrivateKey.fromDer(
@@ -121,10 +166,6 @@ class FortisRsaPrivateKey {
       throw FortisKeyException('Invalid DER for RSA private key ($format): $e');
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Internal encoding
-  // ---------------------------------------------------------------------------
 
   Uint8List _encodePkcs1() {
     final n = key.modulus!;
@@ -165,10 +206,6 @@ class FortisRsaPrivateKey {
     return privateKeyInfo.encode();
   }
 
-  // ---------------------------------------------------------------------------
-  // Internal decoding
-  // ---------------------------------------------------------------------------
-
   static FortisRsaPrivateKey _decodePkcs1(Uint8List der) {
     final parser = ASN1Parser(der);
     final seq = parser.nextObject() as ASN1Sequence;
@@ -189,10 +226,6 @@ class FortisRsaPrivateKey {
     final pkcs1Der = octetString.octets!;
     return _decodePkcs1(pkcs1Der);
   }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
 
   static (String, String) _headers(RsaPrivateKeyFormat format) =>
       switch (format) {

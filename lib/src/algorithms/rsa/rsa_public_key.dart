@@ -14,23 +14,39 @@ const _pkcs1Footer = '-----END RSA PUBLIC KEY-----';
 
 /// An RSA public key used for encryption.
 ///
-/// This is a pure data container wrapping PointyCastle's [RSAPublicKey].
-/// Serialization is available via [toPem] / [toDer].
-/// To encrypt data, build an [RsaEncrypter] via [RsaBuilder].
+/// Pure data container wrapping PointyCastle's [RSAPublicKey]. Serialization
+/// is available via [toPem], [toDer], and [toDerBase64]; import via
+/// [fromPem], [fromDer], and [fromDerBase64]. To encrypt data, build an
+/// [RsaEncrypter] via [RsaBuilder].
+///
+/// Example:
+/// ```dart
+/// final pair = await Fortis.rsa().generateKeyPair();
+/// final pem = pair.publicKey.toPem();
+/// final restored = FortisRsaPublicKey.fromPem(pem);
+/// ```
 class FortisRsaPublicKey {
   /// The underlying PointyCastle key.
   final RSAPublicKey key;
 
-  /// Creates a [FortisRsaPublicKey] from the given PointyCastle [key].
+  /// Creates a [FortisRsaPublicKey] from a raw PointyCastle [RSAPublicKey].
+  ///
+  /// You usually don't call this directly — prefer [FortisRsaPublicKey.fromPem],
+  /// [FortisRsaPublicKey.fromDer], [FortisRsaPublicKey.fromDerBase64], or
+  /// [RsaBuilder.generateKeyPair].
   const FortisRsaPublicKey(this.key);
-
-  // ---------------------------------------------------------------------------
-  // Serialization
-  // ---------------------------------------------------------------------------
 
   /// Encodes this key as a PEM string.
   ///
-  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
+  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo) —
+  /// the widely-supported default. Use [RsaPublicKeyFormat.pkcs1] for raw
+  /// PKCS#1 interop.
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = pair.publicKey.toPem(); // -----BEGIN PUBLIC KEY-----
+  /// final pem1 = pair.publicKey.toPem(format: RsaPublicKeyFormat.pkcs1);
+  /// ```
   String toPem({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) {
     final der = toDer(format: format);
     final b64 = base64.encode(der);
@@ -39,9 +55,15 @@ class FortisRsaPublicKey {
     return '$header\n$wrapped\n$footer';
   }
 
-  /// Encodes this key as DER bytes.
+  /// Encodes this key as DER bytes (binary ASN.1).
   ///
   /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = pair.publicKey.toDer(); // Uint8List, X.509 DER
+  /// File('pub.der').writeAsBytesSync(bytes);
+  /// ```
   Uint8List toDer({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) {
     return switch (format) {
       RsaPublicKeyFormat.x509 => _encodeX509(),
@@ -51,20 +73,30 @@ class FortisRsaPublicKey {
 
   /// Exports the public key as a Base64-encoded DER string.
   ///
-  /// This is a convenience wrapper over [toDer]. The resulting string is
-  /// DER encoded as Base64, not PEM.
+  /// Convenience wrapper over [toDer] — handy for JSON/HTTP transport
+  /// without the PEM header/footer lines.
+  ///
   /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = pair.publicKey.toDerBase64();
+  /// sendJson({'rsa_pub_b64': b64});
+  /// ```
   String toDerBase64({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) =>
       base64Encode(toDer(format: format));
 
-  // ---------------------------------------------------------------------------
-  // Deserialization
-  // ---------------------------------------------------------------------------
-
   /// Imports a public key from a PEM string.
   ///
-  /// [format] must match the PEM header present in [pem].
-  /// Defaults to [RsaPublicKeyFormat.x509].
+  /// [format] must match the PEM header inside [pem]:
+  /// - `-----BEGIN PUBLIC KEY-----` → [RsaPublicKeyFormat.x509] (default)
+  /// - `-----BEGIN RSA PUBLIC KEY-----` → [RsaPublicKeyFormat.pkcs1]
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = File('public.pem').readAsStringSync();
+  /// final key = FortisRsaPublicKey.fromPem(pem);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the PEM is malformed.
   factory FortisRsaPublicKey.fromPem(
@@ -84,8 +116,15 @@ class FortisRsaPublicKey {
 
   /// Imports a public key from a Base64-encoded DER string.
   ///
-  /// This is a convenience wrapper over [fromDer]. The input must be a plain
-  /// Base64 string (not PEM). [format] defaults to [RsaPublicKeyFormat.x509].
+  /// Convenience wrapper over [fromDer]. The input must be a plain Base64
+  /// string (no PEM header/footer). [format] defaults to
+  /// [RsaPublicKeyFormat.x509].
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = json['rsa_pub_b64'] as String;
+  /// final key = FortisRsaPublicKey.fromDerBase64(b64);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the string is not valid Base64 or DER.
   factory FortisRsaPublicKey.fromDerBase64(
@@ -103,10 +142,16 @@ class FortisRsaPublicKey {
     }
   }
 
-  /// Imports a public key from DER bytes.
+  /// Imports a public key from DER bytes (binary ASN.1).
   ///
-  /// [format] must match the DER structure provided.
-  /// Defaults to [RsaPublicKeyFormat.x509].
+  /// [format] must match the DER structure. Defaults to
+  /// [RsaPublicKeyFormat.x509].
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = File('pub.der').readAsBytesSync();
+  /// final key = FortisRsaPublicKey.fromDer(bytes);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the DER is malformed.
   factory FortisRsaPublicKey.fromDer(
@@ -123,10 +168,6 @@ class FortisRsaPublicKey {
       throw FortisKeyException('Invalid DER for RSA public key ($format): $e');
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Internal encoding
-  // ---------------------------------------------------------------------------
 
   Uint8List _encodeX509() {
     final rsaSeq = ASN1Sequence(
@@ -152,10 +193,6 @@ class FortisRsaPublicKey {
     ).encode();
   }
 
-  // ---------------------------------------------------------------------------
-  // Internal decoding
-  // ---------------------------------------------------------------------------
-
   static FortisRsaPublicKey _decodeX509(Uint8List der) {
     final parser = ASN1Parser(der);
     final seq = parser.nextObject() as ASN1Sequence;
@@ -176,10 +213,6 @@ class FortisRsaPublicKey {
 
     return FortisRsaPublicKey(RSAPublicKey(n, e));
   }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
 
   static (String, String) _headers(RsaPublicKeyFormat format) =>
       switch (format) {

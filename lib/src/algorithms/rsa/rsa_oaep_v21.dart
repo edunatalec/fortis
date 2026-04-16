@@ -130,10 +130,6 @@ Uint8List oaepV21Decrypt({
   return db.sublist(start);
 }
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
 int _keyBytes(BigInt modulus) => (modulus.bitLength + 7) ~/ 8;
 
 Uint8List _hash(Digest digest, Uint8List data) {

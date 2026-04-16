@@ -14,10 +14,6 @@ import 'rsa_padding.dart';
 import 'rsa_private_key.dart';
 import 'rsa_public_key.dart';
 
-// ---------------------------------------------------------------------------
-// Phantom type markers
-// ---------------------------------------------------------------------------
-
 /// Marker base for the padding configuration state.
 sealed class RsaBuilderPaddingState {}
 
@@ -36,26 +32,44 @@ final class RsaBuilderHashUnset extends RsaBuilderHashState {}
 /// Indicates that [RsaBuilder.hash] has been called.
 final class RsaBuilderHashSet extends RsaBuilderHashState {}
 
-// ---------------------------------------------------------------------------
-// Builder
-// ---------------------------------------------------------------------------
-
 /// A fluent builder for RSA operations.
 ///
 /// Obtain an instance via [Fortis.rsa].
+///
+/// **Defaults:**
+/// - `keySize`: 2048 bits
+/// - `padding`: *unset* — must be set before `.encrypter()`/`.decrypter()`
+/// - `hash`: *unset* — must be set before `.encrypter()`/`.decrypter()`
+///
+/// The builder uses phantom types to guarantee at compile time that both
+/// [padding] and [hash] have been configured before `.encrypter()` or
+/// `.decrypter()` is available via the [RsaBuilderReady] extension.
 ///
 /// Call [keySize] (optional), then either:
 /// - [generateKeyPair] to generate a new key pair, or
 /// - [padding] + [hash] to unlock [RsaBuilderReady.encrypter] /
 ///   [RsaBuilderReady.decrypter].
 ///
+/// Example — recommended defaults (OAEP v2 + SHA-256):
+///
 /// ```dart
-/// final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
+/// final pair = await Fortis.rsa().generateKeyPair(); // 2048-bit
 ///
 /// final encrypter = Fortis.rsa()
 ///     .padding(RsaPadding.oaep_v2)
 ///     .hash(RsaHash.sha256)
 ///     .encrypter(pair.publicKey);
+///
+/// final ciphertext = encrypter.encrypt('hello fortis');
+/// ```
+///
+/// Example — with label (OAEP v2.1 only):
+///
+/// ```dart
+/// final encrypter = Fortis.rsa()
+///     .padding(RsaPadding.oaep_v2_1)
+///     .hash(RsaHash.sha256)
+///     .encrypter(pair.publicKey, label: 'user:42');
 /// ```
 class RsaBuilder<
   P extends RsaBuilderPaddingState,
@@ -65,9 +79,12 @@ class RsaBuilder<
   final RsaPadding? _padding;
   final RsaHash? _hash;
 
-  // The unnamed constructor is public so that [Fortis.rsa] (defined in a
-  // separate library) can instantiate the initial unset state. Users should
-  // call [Fortis.rsa] rather than constructing a builder directly.
+  /// Creates a builder with optional [keySizeParam], [paddingParam], and
+  /// [hashParam]. Defaults: keySize = 2048, padding and hash unset.
+  ///
+  /// Users should call [Fortis.rsa] rather than constructing a builder
+  /// directly — the unnamed constructor is public only because [Fortis.rsa]
+  /// lives in a separate library.
   RsaBuilder({
     int keySizeParam = 2048,
     RsaPadding? paddingParam,
@@ -76,30 +93,67 @@ class RsaBuilder<
        _padding = paddingParam,
        _hash = hashParam;
 
-  // ---------------------------------------------------------------------------
-  // Configuration methods
-  // ---------------------------------------------------------------------------
-
-  /// Sets the RSA key size (in bits) used by [generateKeyPair].
+  /// Sets the RSA key size in bits used by [generateKeyPair].
   ///
-  /// Defaults to 2048. Must be a power of 2 and at least 2048.
+  /// Defaults to 2048. Must be a power of 2 and at least 2048. Common values:
+  /// **2048** (default, fast), **3072** (NIST-recommended through 2030),
+  /// **4096** (long-term, slower to generate).
+  ///
+  /// Example:
+  /// ```dart
+  /// final pair = await Fortis.rsa().keySize(3072).generateKeyPair();
+  /// ```
   RsaBuilder<P, H> keySize(int size) =>
       RsaBuilder(keySizeParam: size, paddingParam: _padding, hashParam: _hash);
 
-  /// Sets the padding scheme for [RsaBuilderReady.encrypter] /
-  /// [RsaBuilderReady.decrypter].
+  /// Sets the padding scheme.
+  ///
+  /// Required before [RsaBuilderReady.encrypter] / [RsaBuilderReady.decrypter]
+  /// become available (enforced at compile time via phantom types).
+  ///
+  /// Supported values — see [RsaPadding] for details and per-value examples:
+  /// - [RsaPadding.oaep_v2_1] — OAEP with label support (new designs).
+  /// - [RsaPadding.oaep_v2] — OAEP without label (new designs).
+  /// - [RsaPadding.oaep_v1] — legacy SHA-1-only OAEP.
+  /// - [RsaPadding.pkcs1_v1_5] — legacy PKCS#1 v1.5.
+  ///
+  /// Example:
+  /// ```dart
+  /// Fortis.rsa().padding(RsaPadding.oaep_v2).hash(RsaHash.sha256);
+  /// ```
   RsaBuilder<RsaBuilderPaddingSet, H> padding(RsaPadding p) =>
       RsaBuilder(keySizeParam: _keySize, paddingParam: p, hashParam: _hash);
 
-  /// Sets the hash algorithm for the padding scheme.
+  /// Sets the hash algorithm used by the padding scheme (MGF1 for OAEP).
+  ///
+  /// Required before [RsaBuilderReady.encrypter] / [RsaBuilderReady.decrypter]
+  /// become available (enforced at compile time via phantom types).
+  ///
+  /// See [RsaHash] for available values and a selection guide — the
+  /// recommended default is [RsaHash.sha256].
+  ///
+  /// Note: ignored by [RsaPadding.pkcs1_v1_5] (no hash) and hard-wired to
+  /// SHA-1 by [RsaPadding.oaep_v1]. The builder still requires a call, to
+  /// keep the phantom-type API uniform.
+  ///
+  /// Example:
+  /// ```dart
+  /// Fortis.rsa().padding(RsaPadding.oaep_v2).hash(RsaHash.sha256);
+  /// ```
   RsaBuilder<P, RsaBuilderHashSet> hash(RsaHash h) =>
       RsaBuilder(keySizeParam: _keySize, paddingParam: _padding, hashParam: h);
 
-  // ---------------------------------------------------------------------------
-  // Key generation
-  // ---------------------------------------------------------------------------
-
-  /// Generates a new RSA key pair asynchronously in a separate [Isolate].
+  /// Generates a new RSA key pair asynchronously in a separate [Isolate]
+  /// so the main thread isn't blocked.
+  ///
+  /// Key size is controlled by [keySize] (default 2048). RSA-4096 may take
+  /// several seconds to generate.
+  ///
+  /// Example:
+  /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();      // 2048-bit
+  /// final big  = await Fortis.rsa().keySize(4096).generateKeyPair();
+  /// ```
   ///
   /// Throws [FortisConfigException] if the key size is invalid.
   Future<FortisRsaKeyPair> generateKeyPair() async {
@@ -113,10 +167,6 @@ class RsaBuilder<
   }
 }
 
-// ---------------------------------------------------------------------------
-// Extension: encrypter / decrypter only available when fully configured
-// ---------------------------------------------------------------------------
-
 /// Unlocks [encrypter] and [decrypter] once both [RsaBuilder.padding] and
 /// [RsaBuilder.hash] have been called.
 extension RsaBuilderReady
@@ -124,9 +174,27 @@ extension RsaBuilderReady
   /// Builds an [RsaEncrypter] that encrypts with [key].
   ///
   /// [label] is only valid for [RsaPadding.oaep_v2_1]. Pass a [String] or a
-  /// [Uint8List]; the library converts [String] to UTF-8 bytes internally.
+  /// [Uint8List]; [String] is converted to UTF-8 bytes internally. The
+  /// decrypter must use the same label or decryption will fail.
   ///
-  /// Throws [FortisConfigException] if [label] is provided with a non-v2.1 padding.
+  /// Example — no label:
+  /// ```dart
+  /// final encrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2)
+  ///     .hash(RsaHash.sha256)
+  ///     .encrypter(pair.publicKey);
+  /// ```
+  ///
+  /// Example — with label (binds ciphertext to a context):
+  /// ```dart
+  /// final encrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2_1)
+  ///     .hash(RsaHash.sha256)
+  ///     .encrypter(pair.publicKey, label: 'user:42');
+  /// ```
+  ///
+  /// Throws [FortisConfigException] if [label] is provided with a non-v2.1
+  /// padding, or is not a [String] / [Uint8List].
   RsaEncrypter encrypter(FortisRsaPublicKey key, {Object? label}) {
     // _padding and _hash are guaranteed non-null in this extension context
     // (only reachable after .padding() and .hash() have been called)
@@ -145,10 +213,19 @@ extension RsaBuilderReady
 
   /// Builds an [RsaDecrypter] that decrypts with [key].
   ///
-  /// [label] is only valid for [RsaPadding.oaep_v2_1]. Pass a [String] or a
-  /// [Uint8List]; the library converts [String] to UTF-8 bytes internally.
+  /// [label] is only valid for [RsaPadding.oaep_v2_1] and must match the
+  /// label used when encrypting.
   ///
-  /// Throws [FortisConfigException] if [label] is provided with a non-v2.1 padding.
+  /// Example:
+  /// ```dart
+  /// final decrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2_1)
+  ///     .hash(RsaHash.sha256)
+  ///     .decrypter(pair.privateKey, label: 'user:42');
+  /// ```
+  ///
+  /// Throws [FortisConfigException] if [label] is provided with a non-v2.1
+  /// padding, or is not a [String] / [Uint8List].
   RsaDecrypter decrypter(FortisRsaPrivateKey key, {Object? label}) {
     final p = _padding!;
     final h = _hash!;
@@ -163,10 +240,6 @@ extension RsaBuilderReady
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 void _validateKeySize(int keySize) {
   if (keySize < 2048) {

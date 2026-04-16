@@ -26,8 +26,6 @@ void main() {
 
   final plaintext = Uint8List.fromList('hello fortis'.codeUnits);
 
-  // ── decrypt(Object input) — Uint8List ──────────────────────────────────
-
   group('decrypt(Object input) — Uint8List input', () {
     test('recovers original plaintext from raw Uint8List', () {
       final ciphertext = makeEncrypter(pair).encrypt(plaintext);
@@ -43,8 +41,6 @@ void main() {
       },
     );
   });
-
-  // ── decrypt(Object input) — String (Base64) ────────────────────────────
 
   group('decrypt(Object input) — String (Base64) input', () {
     test('recovers original plaintext from Base64 string', () {
@@ -63,8 +59,6 @@ void main() {
     );
   });
 
-  // ── decrypt(Object input) — unsupported type ───────────────────────────
-
   group('decrypt(Object input) — unsupported type', () {
     test('throws FortisConfigException with descriptive message', () {
       expect(
@@ -73,8 +67,6 @@ void main() {
       );
     });
   });
-
-  // ── decryptToString(Object input) ─────────────────────────────────────
 
   group('decryptToString(Object input)', () {
     test('recovers original UTF-8 string from Uint8List input', () {
@@ -118,8 +110,6 @@ void main() {
     });
   });
 
-  // ── wrong key ──────────────────────────────────────────────────────────
-
   group('wrong key', () {
     test('decrypt with wrong key throws FortisEncryptionException', () {
       final ciphertext = makeEncrypter(pair).encrypt(plaintext);
@@ -137,8 +127,6 @@ void main() {
       );
     });
   });
-
-  // ── padding × hash matrix ──────────────────────────────────────────────
 
   group('padding × hash matrix', () {
     final matrixPlaintext = Uint8List.fromList('matrix test'.codeUnits);

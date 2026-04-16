@@ -59,35 +59,75 @@ export 'src/algorithms/ecdh/ecdh_key_derivation.dart';
 
 /// Entry point for the Fortis cryptography library.
 ///
+/// Three algorithm families, each with a fluent builder:
+/// - [aes] — AES symmetric encryption (ECB, CBC, CTR, CFB, OFB, GCM, CCM).
+/// - [rsa] — RSA asymmetric encryption (OAEP v2 / v2.1 / v1, PKCS#1 v1.5).
+/// - [ecdh] — ECDH key agreement (P-256, P-384, P-521) + HKDF.
+///
 /// ```dart
 /// import 'package:fortis/fortis.dart';
 ///
-/// // AES key generation
-/// final key = await Fortis.aes().keySize(256).generateKey();
+/// // ─── AES (GCM — recommended default) ─────────────────────────────
+/// final key = await Fortis.aes().generateKey();          // 256-bit
+/// final cipher = Fortis.aes().gcm().cipher(key);         // AesAuthCipher
+/// final payload = cipher.encryptToPayload('hello');      // AesAuthPayload
+/// final recovered = cipher.decryptToString(payload);
 ///
-/// // AES encrypt/decrypt
-/// final cipher = Fortis.aes().mode(AesMode.gcm).cipher(key);
-/// final ciphertext = cipher.encrypt(plaintext);
-/// final recovered  = cipher.decryptToString(ciphertext);
-///
-/// // RSA
-/// final pair = await Fortis.rsa().keySize(2048).generateKeyPair();
-///
-/// final rsaEncrypter = Fortis.rsa()
+/// // ─── RSA ─────────────────────────────────────────────────────────
+/// final pair = await Fortis.rsa().generateKeyPair();     // 2048-bit
+/// final encrypter = Fortis.rsa()
 ///     .padding(RsaPadding.oaep_v2)
 ///     .hash(RsaHash.sha256)
 ///     .encrypter(pair.publicKey);
+/// final ct = encrypter.encrypt('hello fortis');
 ///
-/// final ciphertext = rsaEncrypter.encrypt(plaintext);
+/// // ─── ECDH + HKDF → AES key ──────────────────────────────────────
+/// final ec = await Fortis.ecdh().generateKeyPair();      // P-256
+/// final aesKey = Fortis.ecdh()
+///     .keyDerivation(ec.privateKey)
+///     .deriveAesKey(remotePublicKey);
 /// ```
 sealed class Fortis {
   /// Creates a new [RsaBuilder] for RSA key generation and encryption.
+  ///
+  /// Defaults: `keySize` = 2048. `padding` and `hash` are unset — calling
+  /// `.encrypter()` / `.decrypter()` requires both to be configured first
+  /// (enforced at compile time via phantom types).
+  ///
+  /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
+  /// final encrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2)
+  ///     .hash(RsaHash.sha256)
+  ///     .encrypter(pair.publicKey);
+  /// ```
   static RsaBuilder<RsaBuilderPaddingUnset, RsaBuilderHashUnset> rsa() =>
       RsaBuilder<RsaBuilderPaddingUnset, RsaBuilderHashUnset>();
 
   /// Creates a new [AesBuilder] for AES key generation and encryption.
+  ///
+  /// Defaults: `keySize` = 256 bits. Pick the mode via a typed shortcut
+  /// ([AesBuilder.gcm], [AesBuilder.cbc], [AesBuilder.ecb], etc.) for a
+  /// statically-typed cipher, or [AesBuilder.mode] for runtime dispatch.
+  ///
+  /// ```dart
+  /// final key = await Fortis.aes().generateKey();
+  /// final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
+  /// ```
   static AesBuilder aes() => AesBuilder();
 
   /// Creates a new [EcdhBuilder] for ECDH key agreement and key derivation.
+  ///
+  /// Defaults: `curve` = [EcdhCurve.p256], `keySize` = 256 bits (for
+  /// derivation). Zero-config usage:
+  ///
+  /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
+  /// final aesKey = Fortis.ecdh()
+  ///     .keyDerivation(pair.privateKey)
+  ///     .deriveAesKey(remotePublicKey);
+  /// ```
   static EcdhBuilder ecdh() => EcdhBuilder();
 }

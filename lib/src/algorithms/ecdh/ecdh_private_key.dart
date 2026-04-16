@@ -18,9 +18,17 @@ const _ecPublicKeyOid = '1.2.840.10045.2.1';
 
 /// An ECDH private key used for key agreement.
 ///
-/// This is a pure data container wrapping PointyCastle's [ECPrivateKey].
-/// Serialization is available via [toPem] / [toDer].
-/// To perform key agreement, build an [EcdhKeyDerivation] via [EcdhBuilder].
+/// Pure data container wrapping PointyCastle's [ECPrivateKey]. Serialization
+/// is available via [toPem], [toDer], and [toDerBase64].
+///
+/// ⚠️ Handle with care — the PEM/DER/Base64 forms are secrets.
+///
+/// Example:
+/// ```dart
+/// final pair = await Fortis.ecdh().generateKeyPair();
+/// final pem = pair.privateKey.toPem();
+/// final restored = FortisEcdhPrivateKey.fromPem(pem);
+/// ```
 class FortisEcdhPrivateKey {
   /// The underlying PointyCastle key.
   final ECPrivateKey key;
@@ -28,17 +36,24 @@ class FortisEcdhPrivateKey {
   /// The curve this key belongs to.
   final EcdhCurve curve;
 
-  /// Creates a [FortisEcdhPrivateKey] from the given PointyCastle [key]
-  /// and [curve].
+  /// Creates a [FortisEcdhPrivateKey] from a raw PointyCastle [ECPrivateKey]
+  /// plus the [curve] it belongs to.
+  ///
+  /// You usually don't call this directly — prefer the `from*` factories or
+  /// [EcdhBuilder.generateKeyPair].
   const FortisEcdhPrivateKey(this.key, this.curve);
-
-  // ---------------------------------------------------------------------------
-  // Serialization
-  // ---------------------------------------------------------------------------
 
   /// Encodes this key as a PEM string.
   ///
-  /// [format] defaults to [EcdhPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
+  /// [format] defaults to [EcdhPrivateKeyFormat.pkcs8] (modern default).
+  /// Use [EcdhPrivateKeyFormat.sec1] for interop with tools that emit
+  /// `-----BEGIN EC PRIVATE KEY-----`.
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = pair.privateKey.toPem();
+  /// final sec1 = pair.privateKey.toPem(format: EcdhPrivateKeyFormat.sec1);
+  /// ```
   String toPem({EcdhPrivateKeyFormat format = EcdhPrivateKeyFormat.pkcs8}) {
     final der = toDer(format: format);
     final b64 = base64.encode(der);
@@ -47,9 +62,15 @@ class FortisEcdhPrivateKey {
     return '$header\n$wrapped\n$footer';
   }
 
-  /// Encodes this key as DER bytes.
+  /// Encodes this key as DER bytes (binary ASN.1).
   ///
   /// [format] defaults to [EcdhPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = pair.privateKey.toDer();
+  /// File('ecdh_priv.der').writeAsBytesSync(bytes);
+  /// ```
   Uint8List toDer({EcdhPrivateKeyFormat format = EcdhPrivateKeyFormat.pkcs8}) {
     return switch (format) {
       EcdhPrivateKeyFormat.pkcs8 => _encodePkcs8(),
@@ -59,19 +80,29 @@ class FortisEcdhPrivateKey {
 
   /// Exports the private key as a Base64-encoded DER string.
   ///
-  /// [format] defaults to [EcdhPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
+  /// Convenience wrapper over [toDer]. [format] defaults to
+  /// [EcdhPrivateKeyFormat.pkcs8].
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = pair.privateKey.toDerBase64();
+  /// secretStore.write('ecdh_priv_b64', b64);
+  /// ```
   String toDerBase64({
     EcdhPrivateKeyFormat format = EcdhPrivateKeyFormat.pkcs8,
   }) => base64Encode(toDer(format: format));
 
-  // ---------------------------------------------------------------------------
-  // Deserialization
-  // ---------------------------------------------------------------------------
-
   /// Imports a private key from a PEM string.
   ///
-  /// [format] must match the PEM header present in [pem].
-  /// Defaults to [EcdhPrivateKeyFormat.pkcs8].
+  /// [format] must match the PEM header inside [pem]:
+  /// - `-----BEGIN PRIVATE KEY-----` → [EcdhPrivateKeyFormat.pkcs8] (default)
+  /// - `-----BEGIN EC PRIVATE KEY-----` → [EcdhPrivateKeyFormat.sec1]
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = File('ecdh_priv.pem').readAsStringSync();
+  /// final key = FortisEcdhPrivateKey.fromPem(pem);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the PEM is malformed.
   factory FortisEcdhPrivateKey.fromPem(
@@ -89,7 +120,14 @@ class FortisEcdhPrivateKey {
 
   /// Imports a private key from a Base64-encoded DER string.
   ///
-  /// [format] defaults to [EcdhPrivateKeyFormat.pkcs8].
+  /// Convenience wrapper over [fromDer]. Input must be plain Base64 (no PEM
+  /// header/footer). [format] defaults to [EcdhPrivateKeyFormat.pkcs8].
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = secretStore.read('ecdh_priv_b64');
+  /// final key = FortisEcdhPrivateKey.fromDerBase64(b64);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the string is not valid Base64 or DER.
   factory FortisEcdhPrivateKey.fromDerBase64(
@@ -109,10 +147,16 @@ class FortisEcdhPrivateKey {
     }
   }
 
-  /// Imports a private key from DER bytes.
+  /// Imports a private key from DER bytes (binary ASN.1).
   ///
-  /// [format] must match the DER structure provided.
-  /// Defaults to [EcdhPrivateKeyFormat.pkcs8].
+  /// [format] must match the DER structure. Defaults to
+  /// [EcdhPrivateKeyFormat.pkcs8].
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = File('ecdh_priv.der').readAsBytesSync();
+  /// final key = FortisEcdhPrivateKey.fromDer(bytes);
+  /// ```
   ///
   /// Throws [FortisKeyException] if the DER is malformed.
   factory FortisEcdhPrivateKey.fromDer(
@@ -131,10 +175,6 @@ class FortisEcdhPrivateKey {
       );
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Internal encoding
-  // ---------------------------------------------------------------------------
 
   Uint8List _encodeSec1() {
     final dBytes = _padToFieldSize(
@@ -201,10 +241,6 @@ class FortisEcdhPrivateKey {
     return pkcs8.encode();
   }
 
-  // ---------------------------------------------------------------------------
-  // Internal decoding
-  // ---------------------------------------------------------------------------
-
   static FortisEcdhPrivateKey _decodeSec1(Uint8List der) {
     final parser = ASN1Parser(der);
     final seq = parser.nextObject() as ASN1Sequence;
@@ -257,10 +293,6 @@ class FortisEcdhPrivateKey {
     final domainParams = ECDomainParameters(curve.domainName);
     return FortisEcdhPrivateKey(ECPrivateKey(d, domainParams), curve);
   }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
 
   static (String, String) _headers(EcdhPrivateKeyFormat format) =>
       switch (format) {
