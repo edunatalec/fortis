@@ -17,6 +17,14 @@ High-level cryptography for Dart. Fluent builder API with compile-time safety, s
 - Async key generation using isolates (non-blocking)
 - Consistent exception hierarchy for error handling
 
+## Installation
+
+```bash
+dart pub add fortis
+```
+
+For a runnable end-to-end tour of the API, see [`example/example.dart`](example/example.dart).
+
 ## Learn Cryptography
 
 New to cryptography or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Check out our [Cryptography Guide](doc/cryptography/en.md)
@@ -172,6 +180,14 @@ final cipher = Fortis.aes().gcm().ivSize(16).cipher(key);
 final cipher = Fortis.aes().ccm().ivSize(13).cipher(key);
 ```
 
+#### Custom Tag Size (CCM only)
+
+GCM tags are fixed at 128 bits. CCM accepts `{32, 48, 64, 80, 96, 112, 128}` per NIST SP 800-38C — validated up front, invalid values throw `FortisConfigException`.
+
+```dart
+final cipher = Fortis.aes().ccm().tagSize(96).cipher(key);
+```
+
 ### Payloads
 
 `encryptToPayload` returns a structured object for easy serialization. Use the typed shortcuts (`.gcm()`, `.ccm()`, `.cbc()`, `.ctr()`, `.cfb()`, `.ofb()`) to get the concrete cipher type — the payload type is inferred statically, no cast required.
@@ -194,6 +210,23 @@ print(payload.toMap()); // {'iv': '...', 'data': '...'}
 ```
 
 > When the mode is only known at runtime, use `Fortis.aes().mode(runtimeMode).cipher(key)` — it returns the sealed base `AesCipher`; pattern-match or cast to the concrete variant before calling `encryptToPayload`.
+
+### Cross-platform Interoperability
+
+The authenticated payload maps directly to the `{iv|nonce, data, tag}` wire format used by .NET, Java, Node.js, and OpenSSL:
+
+```dart
+final cipher = Fortis.aes().gcm().cipher(key);
+final ct = cipher.encrypt('hello fortis');
+
+// Split the combined buffer (iv | ciphertext | tag) for custom transports:
+final iv = base64Encode(ct.sublist(0, 12));
+final tag = base64Encode(ct.sublist(ct.length - 16));
+final data = base64Encode(ct.sublist(12, ct.length - 16));
+
+// Decrypt accepts the same fields back via a Map (or AesAuthPayload):
+final plain = cipher.decryptToString({'nonce': iv, 'data': data, 'tag': tag});
+```
 
 ### Decryption Input Formats
 
@@ -403,6 +436,14 @@ final der = privateKey.toDer();
 final publicKey = FortisEcdhPublicKey.fromPem(pemString);
 final privateKey = FortisEcdhPrivateKey.fromPem(pemString);
 final publicKey = FortisEcdhPublicKey.fromDerBase64(base64String);
+
+// Raw uncompressed point (interop with WebCrypto / JWK / most JS crypto libs)
+final raw = publicKey.toDer(format: EcdhPublicKeyFormat.uncompressedPoint);
+final restored = FortisEcdhPublicKey.fromDer(
+  raw,
+  format: EcdhPublicKeyFormat.uncompressedPoint,
+  curve: EcdhCurve.p256,
+);
 ```
 
 ### Deriving a Shared AES Key
@@ -474,6 +515,27 @@ try {
   print('Decryption failed: ${e.message}');
 } on FortisException catch (e) {
   print('Fortis error: ${e.message}');
+}
+```
+
+Common failure modes and the matching exception type:
+
+```dart
+// AAD mismatch or tampered ciphertext → FortisEncryptionException
+final gcm = Fortis.aes().gcm().aad(aadA).cipher(key);
+final ct = gcm.encrypt('hello');
+
+try {
+  Fortis.aes().gcm().aad(aadB).cipher(key).decryptToString(ct); // wrong AAD
+} on FortisEncryptionException catch (e) {
+  print('Integrity check failed: ${e.message}');
+}
+
+// Invalid Base64 input → FortisConfigException (wrapped at the API boundary)
+try {
+  gcm.decrypt('!!!not base64!!!');
+} on FortisConfigException catch (e) {
+  print('Invalid input: ${e.message}');
 }
 ```
 
