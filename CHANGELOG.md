@@ -19,6 +19,12 @@
 - Renamed `AesAuthModeBuilder.nonceSize` to `ivSize` for consistency with the `encrypt(iv: ...)` parameter.
 - Bumped `lints` to `^6.1.0` and `test` to `^1.31.0`
 
+### Fixed
+
+- `AesCipher.decrypt(String|Map)` and `RsaDecrypter.decrypt(String)` now wrap `FormatException` from `base64Decode` as `FortisConfigException` instead of letting it escape the public API.
+- `AesAuthCipher` constructor now fails fast on invalid `tagSizeBits` (GCM ≠ 128, or CCM outside `{32, 48, 64, 80, 96, 112, 128}`) via `FortisConfigException`, instead of surfacing a runtime `ArgumentError` from PointyCastle.
+- `AesStandardCipher` constructor now rejects CBC without padding and stream modes (CTR/CFB/OFB) with padding, instead of crashing later or silently ignoring the value.
+
 ## 0.1.0 - 2026-04-12
 
 ### Added
