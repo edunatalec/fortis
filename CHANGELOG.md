@@ -24,6 +24,8 @@
 - `AesCipher.decrypt(String|Map)` and `RsaDecrypter.decrypt(String)` now wrap `FormatException` from `base64Decode` as `FortisConfigException` instead of letting it escape the public API.
 - `AesAuthCipher` constructor now fails fast on invalid `tagSizeBits` (GCM ≠ 128, or CCM outside `{32, 48, 64, 80, 96, 112, 128}`) via `FortisConfigException`, instead of surfacing a runtime `ArgumentError` from PointyCastle.
 - `AesStandardCipher` constructor now rejects CBC without padding and stream modes (CTR/CFB/OFB) with padding, instead of crashing later or silently ignoring the value.
+- `RsaEncrypter` and `RsaDecrypter` constructors now reject `label` combined with any padding other than `RsaPadding.oaep_v2_1` (previously the label was silently ignored at encrypt/decrypt time).
+- `FortisAesKey.fromTrustedBytes` now validates the byte length (16/24/32). Although named "trusted", the symbol is exported publicly, so an invalid size would surface as a cryptic PointyCastle error on the first `encrypt` call.
 
 ## 0.1.0 - 2026-04-12
 
