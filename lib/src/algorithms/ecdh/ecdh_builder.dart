@@ -117,12 +117,12 @@ class EcdhBuilder {
   /// Throws [FortisConfigException] if [keySize] is invalid (not a positive
   /// multiple of 8).
   EcdhKeyDerivation keyDerivation(FortisEcdhPrivateKey privateKey) {
-    _validateKeySize(_keySize);
+    _validateEcdhKeySize(_keySize);
     return EcdhKeyDerivation(privateKey: privateKey, keySize: _keySize);
   }
 }
 
-void _validateKeySize(int size) {
+void _validateEcdhKeySize(int size) {
   if (size <= 0 || size % 8 != 0) {
     throw FortisConfigException(
       'keySize must be a positive multiple of 8 bits, got $size.',

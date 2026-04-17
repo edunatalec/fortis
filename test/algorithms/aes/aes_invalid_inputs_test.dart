@@ -48,6 +48,46 @@ void main() {
     });
   });
 
+  group('FortisAesKey.fromTrustedBytes — public entry must validate', () {
+    // Although named "trusted", this factory is exported publicly via
+    // package:fortis/fortis.dart and must reject invalid key sizes the
+    // same way fromBytes does.
+    test('empty bytes throw FortisKeyException', () {
+      expect(
+        () => FortisAesKey.fromTrustedBytes(Uint8List(0)),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('1-byte input throws FortisKeyException', () {
+      expect(
+        () => FortisAesKey.fromTrustedBytes(Uint8List(1)),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('15-byte input (off-by-one from 128) throws FortisKeyException', () {
+      expect(
+        () => FortisAesKey.fromTrustedBytes(Uint8List(15)),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('16-byte input (128-bit) constructs normally', () {
+      expect(
+        () => FortisAesKey.fromTrustedBytes(Uint8List(16)),
+        returnsNormally,
+      );
+    });
+
+    test('32-byte input (256-bit) constructs normally', () {
+      expect(
+        () => FortisAesKey.fromTrustedBytes(Uint8List(32)),
+        returnsNormally,
+      );
+    });
+  });
+
   group('encrypt() — invalid plaintext types', () {
     test('int plaintext throws FortisConfigException', () {
       final cipher = Fortis.aes().gcm().cipher(key);

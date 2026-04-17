@@ -6,11 +6,13 @@ import 'package:pointycastle/export.dart';
 
 import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_encryption_exception.dart';
+import 'aes_constants.dart';
 import 'aes_auth_payload.dart';
 import 'aes_key.dart';
 import 'aes_mode.dart';
 import 'aes_padding.dart';
 import 'aes_payload.dart';
+import 'aes_paddings_impl.dart';
 
 /// A symmetric AES cipher that encrypts and decrypts with the same key.
 ///
@@ -294,9 +296,10 @@ sealed class AesCipher {
 
     final padding = _padding!;
 
-    if (padding == AesPadding.noPadding && plaintext.length % 16 != 0) {
+    if (padding == AesPadding.noPadding &&
+        plaintext.length % aesBlockSize != 0) {
       throw FortisConfigException(
-        'AesPadding.noPadding requires data length to be a multiple of 16 bytes, '
+        'AesPadding.noPadding requires data length to be a multiple of $aesBlockSize bytes, '
         'got ${plaintext.length}.',
       );
     }
@@ -314,14 +317,15 @@ sealed class AesCipher {
   Uint8List _encryptCbc(Uint8List plaintext, Uint8List? iv) {
     final padding = _padding!;
 
-    if (padding == AesPadding.noPadding && plaintext.length % 16 != 0) {
+    if (padding == AesPadding.noPadding &&
+        plaintext.length % aesBlockSize != 0) {
       throw FortisConfigException(
-        'AesPadding.noPadding requires data length to be a multiple of 16 bytes, '
+        'AesPadding.noPadding requires data length to be a multiple of $aesBlockSize bytes, '
         'got ${plaintext.length}.',
       );
     }
 
-    final resolvedIv = _resolveIv(16, iv, 'CBC');
+    final resolvedIv = _resolveIv(standardIvSize, iv, 'CBC');
     final cipher = _paddedBlockCipher(padding, CBCBlockCipher(AESEngine()));
 
     cipher.init(
@@ -336,7 +340,7 @@ sealed class AesCipher {
   }
 
   Uint8List _encryptCtr(Uint8List plaintext, Uint8List? iv) {
-    final resolvedIv = _resolveIv(16, iv, 'CTR');
+    final resolvedIv = _resolveIv(standardIvSize, iv, 'CTR');
     final cipher = CTRStreamCipher(AESEngine());
     cipher.init(
       true,
@@ -348,8 +352,8 @@ sealed class AesCipher {
   }
 
   Uint8List _encryptCfb(Uint8List plaintext, Uint8List? iv) {
-    final resolvedIv = _resolveIv(16, iv, 'CFB');
-    final cipher = CFBBlockCipher(AESEngine(), 16);
+    final resolvedIv = _resolveIv(standardIvSize, iv, 'CFB');
+    final cipher = CFBBlockCipher(AESEngine(), aesBlockSize);
 
     cipher.init(
       true,
@@ -360,8 +364,8 @@ sealed class AesCipher {
   }
 
   Uint8List _encryptOfb(Uint8List plaintext, Uint8List? iv) {
-    final resolvedIv = _resolveIv(16, iv, 'OFB');
-    final cipher = OFBBlockCipher(AESEngine(), 16);
+    final resolvedIv = _resolveIv(standardIvSize, iv, 'OFB');
+    final cipher = OFBBlockCipher(AESEngine(), aesBlockSize);
 
     cipher.init(
       true,
@@ -419,15 +423,15 @@ sealed class AesCipher {
   }
 
   Uint8List _decryptCbc(Uint8List ciphertext) {
-    if (ciphertext.length < 16) {
+    if (ciphertext.length < standardIvSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for CBC mode '
-        '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
+        '(expected at least $standardIvSize bytes for IV, got ${ciphertext.length}).',
       );
     }
 
-    final iv = ciphertext.sublist(0, 16);
-    final body = ciphertext.sublist(16);
+    final iv = ciphertext.sublist(0, standardIvSize);
+    final body = ciphertext.sublist(standardIvSize);
     final padding = _padding!;
     final cipher = _paddedBlockCipher(padding, CBCBlockCipher(AESEngine()));
 
@@ -443,15 +447,15 @@ sealed class AesCipher {
   }
 
   Uint8List _decryptCtr(Uint8List ciphertext) {
-    if (ciphertext.length < 16) {
+    if (ciphertext.length < standardIvSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for CTR mode '
-        '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
+        '(expected at least $standardIvSize bytes for IV, got ${ciphertext.length}).',
       );
     }
 
-    final iv = ciphertext.sublist(0, 16);
-    final body = ciphertext.sublist(16);
+    final iv = ciphertext.sublist(0, standardIvSize);
+    final body = ciphertext.sublist(standardIvSize);
     final cipher = CTRStreamCipher(AESEngine());
 
     cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
@@ -464,16 +468,16 @@ sealed class AesCipher {
   }
 
   Uint8List _decryptCfb(Uint8List ciphertext) {
-    if (ciphertext.length < 16) {
+    if (ciphertext.length < standardIvSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for CFB mode '
-        '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
+        '(expected at least $standardIvSize bytes for IV, got ${ciphertext.length}).',
       );
     }
 
-    final iv = ciphertext.sublist(0, 16);
-    final body = ciphertext.sublist(16);
-    final cipher = CFBBlockCipher(AESEngine(), 16);
+    final iv = ciphertext.sublist(0, standardIvSize);
+    final body = ciphertext.sublist(standardIvSize);
+    final cipher = CFBBlockCipher(AESEngine(), aesBlockSize);
 
     cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
 
@@ -481,16 +485,16 @@ sealed class AesCipher {
   }
 
   Uint8List _decryptOfb(Uint8List ciphertext) {
-    if (ciphertext.length < 16) {
+    if (ciphertext.length < standardIvSize) {
       throw FortisEncryptionException(
         'Ciphertext too short for OFB mode '
-        '(expected at least 16 bytes for IV, got ${ciphertext.length}).',
+        '(expected at least $standardIvSize bytes for IV, got ${ciphertext.length}).',
       );
     }
 
-    final iv = ciphertext.sublist(0, 16);
-    final body = ciphertext.sublist(16);
-    final cipher = OFBBlockCipher(AESEngine(), 16);
+    final iv = ciphertext.sublist(0, standardIvSize);
+    final body = ciphertext.sublist(standardIvSize);
+    final cipher = OFBBlockCipher(AESEngine(), aesBlockSize);
 
     cipher.init(false, ParametersWithIV(KeyParameter(_key.toBytes()), iv));
 
@@ -585,19 +589,19 @@ sealed class AesCipher {
   }
 
   Uint8List _processStreamBlockCipher(BlockCipher cipher, Uint8List input) {
-    const blockSize = 16;
     final output = Uint8List(input.length);
     var offset = 0;
 
-    while (offset + blockSize <= input.length) {
+    while (offset + aesBlockSize <= input.length) {
       cipher.processBlock(input, offset, output, offset);
-      offset += blockSize;
+      offset += aesBlockSize;
     }
 
     if (offset < input.length) {
       final remaining = input.length - offset;
-      final tmp = Uint8List(blockSize)..setRange(0, remaining, input, offset);
-      final tmpOut = Uint8List(blockSize);
+      final tmp = Uint8List(aesBlockSize)
+        ..setRange(0, remaining, input, offset);
+      final tmpOut = Uint8List(aesBlockSize);
 
       cipher.processBlock(tmp, 0, tmpOut, 0);
       output.setRange(offset, output.length, tmpOut);
@@ -614,8 +618,8 @@ sealed class AesCipher {
   Padding _toPadding(AesPadding padding) => switch (padding) {
     AesPadding.pkcs7 => PKCS7Padding(),
     AesPadding.iso7816 => ISO7816d4Padding(),
-    AesPadding.zeroPadding => _ZeroBytePadding(),
-    AesPadding.noPadding => _NoPadding(),
+    AesPadding.zeroPadding => ZeroBytePaddingImpl(),
+    AesPadding.noPadding => NoPaddingImpl(),
   };
 
   Uint8List _randomBytes(int length) {
@@ -733,9 +737,8 @@ final class AesStandardCipher extends AesCipher {
   AesPayload encryptToPayload(Object plaintext, {Uint8List? iv}) {
     final buffer = encrypt(plaintext, iv: iv);
 
-    // CBC, CTR, CFB, OFB — IV is always 16 bytes
-    final ivB64 = base64Encode(buffer.sublist(0, 16));
-    final data = base64Encode(buffer.sublist(16));
+    final ivB64 = base64Encode(buffer.sublist(0, standardIvSize));
+    final data = base64Encode(buffer.sublist(standardIvSize));
 
     return AesPayload(iv: ivB64, data: data);
   }
@@ -791,7 +794,8 @@ final class AesAuthCipher extends AesCipher {
       key: key,
       aad: aad,
       tagSizeBits: tagSizeBits,
-      ivSize: ivSize ?? (mode == AesMode.gcm ? 12 : 11),
+      ivSize:
+          ivSize ?? (mode == AesMode.gcm ? gcmDefaultIvSize : ccmDefaultIvSize),
     );
   }
 
@@ -823,10 +827,11 @@ final class AesAuthCipher extends AesCipher {
     final buffer = encrypt(plaintext, iv: iv);
 
     final ivSize = _ivSize;
-    const tagSize = 16;
     final ivB64 = base64Encode(buffer.sublist(0, ivSize));
-    final tag = base64Encode(buffer.sublist(buffer.length - tagSize));
-    final data = base64Encode(buffer.sublist(ivSize, buffer.length - tagSize));
+    final tag = base64Encode(buffer.sublist(buffer.length - authTagSize));
+    final data = base64Encode(
+      buffer.sublist(ivSize, buffer.length - authTagSize),
+    );
 
     return AesAuthPayload(iv: ivB64, data: data, tag: tag);
   }
@@ -851,70 +856,4 @@ void _validateAuthTagSize(AesMode mode, int tagSizeBits) {
       );
     }
   }
-}
-
-/// No-op padding implementation for [AesPadding.noPadding].
-///
-/// Data must already be block-aligned before encryption; this padding adds
-/// and removes nothing, ensuring interoperability with systems that expect
-/// raw unpadded AES output.
-class _NoPadding implements Padding {
-  @override
-  String get algorithmName => 'NoPadding';
-
-  @override
-  void init([CipherParameters? params]) {}
-
-  @override
-  int addPadding(Uint8List data, int offset) => 0;
-
-  @override
-  int padCount(Uint8List data) => 0;
-
-  // Required by the Padding interface but never invoked by PaddedBlockCipherImpl,
-  // which uses addPadding/padCount instead. Throws loudly if some future
-  // PointyCastle release starts calling it.
-  @override
-  Uint8List process(bool pad, Uint8List data) =>
-      throw UnsupportedError('_NoPadding.process is not used by Fortis.');
-}
-
-/// Custom zero-byte padding implementation.
-///
-/// ⚠️ Ambiguous if data legitimately ends with `0x00` bytes. Prefer [PKCS7Padding].
-class _ZeroBytePadding implements Padding {
-  @override
-  String get algorithmName => 'ZeroBytePadding';
-
-  @override
-  void init([CipherParameters? params]) {}
-
-  @override
-  int addPadding(Uint8List data, int offset) {
-    final count = data.length - offset;
-
-    for (var i = offset; i < data.length; i++) {
-      data[i] = 0;
-    }
-
-    return count;
-  }
-
-  @override
-  int padCount(Uint8List data) {
-    var i = data.length - 1;
-
-    while (i >= 0 && data[i] == 0) {
-      i--;
-    }
-
-    return data.length - 1 - i;
-  }
-
-  // Required by the Padding interface but never invoked by PaddedBlockCipherImpl,
-  // which uses addPadding/padCount instead. Throws loudly if some future
-  // PointyCastle release starts calling it.
-  @override
-  Uint8List process(bool pad, Uint8List data) =>
-      throw UnsupportedError('_ZeroBytePadding.process is not used by Fortis.');
 }

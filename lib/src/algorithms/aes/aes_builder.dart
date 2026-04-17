@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import '../../core/fortis_log.dart';
 import '../../exceptions/fortis_config_exception.dart';
+import 'aes_constants.dart';
 import 'aes_cipher.dart';
 import 'aes_key.dart';
 import 'aes_mode.dart';
@@ -56,7 +57,7 @@ class AesBuilder {
   ///
   /// Throws [FortisConfigException] if the key size is not 128, 192, or 256.
   Future<FortisAesKey> generateKey() async {
-    _validateKeySize(_keySize);
+    _validateAesKeySize(_keySize);
     return Isolate.run(() => _generateSync(_keySize));
   }
 
@@ -376,7 +377,7 @@ sealed class AesAuthModeBuilder extends AesModeBuilder {
 ///     .cipher(key); // AesAuthCipher
 /// ```
 final class AesGcmModeBuilder extends AesAuthModeBuilder {
-  AesGcmModeBuilder._({super.aad, super.ivSize = 12})
+  AesGcmModeBuilder._({super.aad, super.ivSize = gcmDefaultIvSize})
     : super._(mode: AesMode.gcm, tagSizeBits: 128);
 
   /// Sets the Additional Authenticated Data (AAD).
@@ -437,8 +438,11 @@ final class AesGcmModeBuilder extends AesAuthModeBuilder {
 ///     .cipher(key); // AesAuthCipher
 /// ```
 final class AesCcmModeBuilder extends AesAuthModeBuilder {
-  AesCcmModeBuilder._({super.aad, super.ivSize = 11, super.tagSizeBits = 128})
-    : super._(mode: AesMode.ccm);
+  AesCcmModeBuilder._({
+    super.aad,
+    super.ivSize = ccmDefaultIvSize,
+    super.tagSizeBits = 128,
+  }) : super._(mode: AesMode.ccm);
 
   /// Sets the Additional Authenticated Data (AAD). See [AesGcmModeBuilder.aad].
   @override
@@ -497,7 +501,7 @@ final class AesCcmModeBuilder extends AesAuthModeBuilder {
   }
 }
 
-void _validateKeySize(int keySize) {
+void _validateAesKeySize(int keySize) {
   if (keySize != 128 && keySize != 192 && keySize != 256) {
     throw FortisConfigException(
       'AES key size must be 128, 192, or 256 bits, got $keySize.',

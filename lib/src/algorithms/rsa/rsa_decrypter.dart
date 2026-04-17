@@ -9,6 +9,7 @@ import 'rsa_hash.dart';
 import 'rsa_oaep_v21.dart';
 import 'rsa_padding.dart';
 import 'rsa_private_key.dart';
+import 'rsa_validators.dart';
 
 // ignore_for_file: constant_identifier_names
 
@@ -50,7 +51,25 @@ class RsaDecrypter {
   ///     .hash(RsaHash.sha256)
   ///     .decrypter(pair.privateKey);
   /// ```
-  const RsaDecrypter({
+  ///
+  /// Throws [FortisConfigException] if [label] is provided with a padding
+  /// other than [RsaPadding.oaep_v2_1].
+  factory RsaDecrypter({
+    required FortisRsaPrivateKey key,
+    required RsaPadding padding,
+    required RsaHash hash,
+    Uint8List? label,
+  }) {
+    validateLabelPadding(label, padding);
+    return RsaDecrypter._internal(
+      key: key,
+      padding: padding,
+      hash: hash,
+      label: label,
+    );
+  }
+
+  const RsaDecrypter._internal({
     required this.key,
     required this.padding,
     required this.hash,
@@ -113,6 +132,8 @@ class RsaDecrypter {
         RsaPadding.oaep_v2_1 => _decryptOaepV21(ciphertext),
       };
     } on FortisEncryptionException {
+      rethrow;
+    } on FortisConfigException {
       rethrow;
     } catch (e) {
       throw FortisEncryptionException('Decryption failed: $e');

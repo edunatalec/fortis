@@ -166,7 +166,7 @@ class EcdhKeyDerivation {
     Uint8List? salt,
     Uint8List? info,
   }) {
-    _validateKeySize(keySize);
+    _validateEcdhKeySize(keySize);
 
     final keyLengthBytes = keySize ~/ 8;
     final hkdfDerivator = HKDFKeyDerivator(SHA256Digest());
@@ -212,7 +212,7 @@ class EcdhKeyDerivation {
   }
 }
 
-void _validateKeySize(int size) {
+void _validateEcdhKeySize(int size) {
   if (size <= 0 || size % 8 != 0) {
     throw FortisConfigException(
       'keySize must be a positive multiple of 8 bits, got $size.',

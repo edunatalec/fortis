@@ -157,7 +157,7 @@ class RsaBuilder<
   ///
   /// Throws [FortisConfigException] if the key size is invalid.
   Future<FortisRsaKeyPair> generateKeyPair() async {
-    _validateKeySize(_keySize);
+    _validateRsaKeySize(_keySize);
 
     if (_keySize == 4096) {
       FortisLog.info('RSA-4096 key generation may be slow.');
@@ -241,7 +241,7 @@ extension RsaBuilderReady
   }
 }
 
-void _validateKeySize(int keySize) {
+void _validateRsaKeySize(int keySize) {
   if (keySize < 2048) {
     throw FortisConfigException(
       'keySize must be at least 2048 bits, got $keySize.',
