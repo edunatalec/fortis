@@ -7,6 +7,7 @@ import 'package:pointycastle/ecc/api.dart';
 import '../../exceptions/fortis_key_exception.dart';
 import 'ecdh_curve.dart';
 import 'ecdh_public_key_format.dart';
+import 'ecdh_validators.dart';
 
 const _x509Header = '-----BEGIN PUBLIC KEY-----';
 const _x509Footer = '-----END PUBLIC KEY-----';
@@ -38,7 +39,15 @@ class FortisEcdhPublicKey {
   ///
   /// You usually don't call this directly — prefer the `from*` factories or
   /// [EcdhBuilder.generateKeyPair].
-  const FortisEcdhPublicKey(this.key, this.curve);
+  ///
+  /// Throws [FortisKeyException] if [key]'s domain parameters don't match
+  /// [curve] (e.g., a P-256 key declared as P-384).
+  factory FortisEcdhPublicKey(ECPublicKey key, EcdhCurve curve) {
+    validateKeyCurveMatch(key.parameters, curve);
+    return FortisEcdhPublicKey._internal(key, curve);
+  }
+
+  const FortisEcdhPublicKey._internal(this.key, this.curve);
 
   /// Encodes this key as a PEM string.
   ///

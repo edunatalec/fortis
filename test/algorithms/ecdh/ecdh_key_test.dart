@@ -1,4 +1,5 @@
 import 'package:fortis/fortis.dart';
+import 'package:pointycastle/ecc/api.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -172,6 +173,71 @@ void main() {
     test('invalid Base64 throws FortisKeyException', () {
       expect(
         () => FortisEcdhPrivateKey.fromDerBase64('!!!invalid!!!'),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+  });
+
+  group('constructor — key↔curve mismatch', () {
+    test('FortisEcdhPublicKey: P-256 key declared as P-384 throws', () {
+      final p256Key = pairs[EcdhCurve.p256]!.publicKey.key;
+      expect(
+        () => FortisEcdhPublicKey(p256Key, EcdhCurve.p384),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('FortisEcdhPublicKey: P-521 key declared as P-256 throws', () {
+      final p521Key = pairs[EcdhCurve.p521]!.publicKey.key;
+      expect(
+        () => FortisEcdhPublicKey(p521Key, EcdhCurve.p256),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('FortisEcdhPublicKey: matching key+curve constructs normally', () {
+      for (final curve in EcdhCurve.values) {
+        final k = pairs[curve]!.publicKey.key;
+        expect(
+          () => FortisEcdhPublicKey(k, curve),
+          returnsNormally,
+          reason: 'curve=$curve',
+        );
+      }
+    });
+
+    test('FortisEcdhPrivateKey: P-256 key declared as P-384 throws', () {
+      final p256Key = pairs[EcdhCurve.p256]!.privateKey.key;
+      expect(
+        () => FortisEcdhPrivateKey(p256Key, EcdhCurve.p384),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('FortisEcdhPrivateKey: P-384 key declared as P-521 throws', () {
+      final p384Key = pairs[EcdhCurve.p384]!.privateKey.key;
+      expect(
+        () => FortisEcdhPrivateKey(p384Key, EcdhCurve.p521),
+        throwsA(isA<FortisKeyException>()),
+      );
+    });
+
+    test('FortisEcdhPrivateKey: matching key+curve constructs normally', () {
+      for (final curve in EcdhCurve.values) {
+        final k = pairs[curve]!.privateKey.key;
+        expect(
+          () => FortisEcdhPrivateKey(k, curve),
+          returnsNormally,
+          reason: 'curve=$curve',
+        );
+      }
+    });
+
+    test('ECPrivateKey with null parameters throws FortisKeyException', () {
+      // PointyCastle allows a bare ECPrivateKey(d) with no domain params.
+      final keyWithoutParams = ECPrivateKey(BigInt.one, null);
+      expect(
+        () => FortisEcdhPrivateKey(keyWithoutParams, EcdhCurve.p256),
         throwsA(isA<FortisKeyException>()),
       );
     });
