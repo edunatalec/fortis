@@ -1,6 +1,18 @@
 # Changelog
 
-## 0.2.0 - 2026-04-16
+## [0.3.0] - 2026-04-24
+
+### Added
+
+- Flutter web support: `Fortis.aes().generateKey()`, `Fortis.ecdh().generateKeyPair()`, and `Fortis.rsa().generateKeyPair()` now work on web. Implementation uses conditional imports — `dart:isolate` on VM/AOT, synchronous execution wrapped in `Future.sync` on web (since `dart:isolate` is unavailable there).
+- `FortisLog.warn` now fires on web when generating RSA keys ≥ 2048 bits to flag that the main thread will be blocked.
+
+### Changed
+
+- Internal: key-generation call sites now route through `lib/src/core/platform.dart` instead of importing `dart:isolate` directly.
+- Docstrings of `generateKey` / `generateKeyPair` now describe the web behaviour alongside the VM/Isolate path.
+
+## [0.2.0] - 2026-04-16
 
 ### Added
 
@@ -28,7 +40,7 @@
 - `FortisAesKey.fromTrustedBytes` now validates the byte length (16/24/32). Although named "trusted", the symbol is exported publicly, so an invalid size would surface as a cryptic PointyCastle error on the first `encrypt` call.
 - `FortisEcdhPublicKey` and `FortisEcdhPrivateKey` constructors now reject `key`/`curve` mismatches (e.g., a P-256 key declared as P-384). Previously the combination was accepted silently and surfaced as inconsistent shared secrets or cryptic errors downstream.
 
-## 0.1.0 - 2026-04-12
+## [0.1.0] - 2026-04-12
 
 ### Added
 
