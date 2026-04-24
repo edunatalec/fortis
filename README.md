@@ -14,8 +14,25 @@ High-level cryptography for Dart. Fluent builder API with compile-time safety, s
 - Automatic IV/nonce generation with cryptographically secure random
 - Structured payloads for easy serialization
 - Key serialization in PEM, DER, and Base64 formats
-- Async key generation using isolates (non-blocking)
+- Async key generation (non-blocking via `Isolate` on VM/AOT; runs on the main thread on Flutter web, where `dart:isolate` is unavailable)
 - Consistent exception hierarchy for error handling
+
+## Platform support
+
+| Platform                                  | Supported                               |
+| ----------------------------------------- | --------------------------------------- |
+| Dart VM (CLI / servers)                   | ✅                                       |
+| Flutter mobile (iOS, Android)             | ✅                                       |
+| Flutter desktop (macOS, Windows, Linux)   | ✅                                       |
+| Flutter web (dart2js, dart2wasm)          | ✅ (see note below)                      |
+
+On Flutter web, `dart:isolate` is not available. Key-generation calls
+(`Fortis.aes().generateKey()`, `Fortis.ecdh().generateKeyPair()`,
+`Fortis.rsa().generateKeyPair()`) still return a `Future` but execute
+synchronously on the main thread. AES and ECDH are effectively
+instantaneous; RSA ≥ 2048 bits can freeze the UI for seconds — a
+`FortisLog` warning is emitted to flag it. Consider pre-generating RSA
+keys server-side or offloading to a Web Worker if that matters.
 
 ## Installation
 
