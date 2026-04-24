@@ -1,8 +1,8 @@
-import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
 import '../../core/fortis_log.dart';
+import '../../core/platform.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import 'aes_constants.dart';
 import 'aes_cipher.dart';
@@ -46,8 +46,14 @@ class AesBuilder {
   /// ```
   AesBuilder keySize(int size) => AesBuilder(keySize: size);
 
-  /// Generates a random AES key of the configured key size in a Dart
-  /// [Isolate], so the main thread is not blocked.
+  /// Generates a random AES key of the configured key size.
+  ///
+  /// On VM / mobile / desktop the work runs on a background [Isolate] so
+  /// the main thread is not blocked. On Flutter web — where
+  /// `dart:isolate` is unavailable — the work runs synchronously on the
+  /// main thread, wrapped in a [Future] to keep the signature uniform.
+  /// AES key generation is trivially fast, so the web fallback is
+  /// effectively instantaneous.
   ///
   /// Example:
   /// ```dart
@@ -58,7 +64,7 @@ class AesBuilder {
   /// Throws [FortisConfigException] if the key size is not 128, 192, or 256.
   Future<FortisAesKey> generateKey() async {
     _validateAesKeySize(_keySize);
-    return Isolate.run(() => _generateSync(_keySize));
+    return runOffThread(() => _generateSync(_keySize));
   }
 
   /// Selects [AesMode.ecb] and returns an [AesEcbModeBuilder].

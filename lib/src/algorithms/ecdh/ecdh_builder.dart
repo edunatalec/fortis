@@ -1,9 +1,9 @@
-import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
+import '../../core/platform.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import 'ecdh_curve.dart';
 import 'ecdh_key_derivation.dart';
@@ -86,8 +86,14 @@ class EcdhBuilder {
   EcdhBuilder keySize(int size) =>
       EcdhBuilder(curveParam: _curve, keySizeParam: size);
 
-  /// Generates a new ECDH key pair asynchronously in a separate [Isolate]
-  /// so the main thread isn't blocked.
+  /// Generates a new ECDH key pair.
+  ///
+  /// On VM / mobile / desktop the work runs on a background [Isolate] so
+  /// the main thread isn't blocked. On Flutter web — where
+  /// `dart:isolate` is unavailable — the work runs synchronously on the
+  /// main thread, wrapped in a [Future] to keep the signature uniform.
+  /// EC key generation is fast (typically under 100 ms), so the web
+  /// fallback is rarely noticeable.
   ///
   /// The curve is determined by the current [curve] setting (default:
   /// [EcdhCurve.p256]).
@@ -98,7 +104,7 @@ class EcdhBuilder {
   /// print(pair.publicKey.toPem());
   /// ```
   Future<FortisEcdhKeyPair> generateKeyPair() async {
-    return Isolate.run(() => _generateSync(_curve));
+    return runOffThread(() => _generateSync(_curve));
   }
 
   /// Creates an [EcdhKeyDerivation] for key agreement with [privateKey].

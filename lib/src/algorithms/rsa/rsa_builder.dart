@@ -1,10 +1,10 @@
-import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
 import '../../core/fortis_log.dart';
+import '../../core/platform.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import 'rsa_decrypter.dart';
 import 'rsa_encrypter.dart';
@@ -143,8 +143,15 @@ class RsaBuilder<
   RsaBuilder<P, RsaBuilderHashSet> hash(RsaHash h) =>
       RsaBuilder(keySizeParam: _keySize, paddingParam: _padding, hashParam: h);
 
-  /// Generates a new RSA key pair asynchronously in a separate [Isolate]
-  /// so the main thread isn't blocked.
+  /// Generates a new RSA key pair.
+  ///
+  /// On VM / mobile / desktop the work runs on a background [Isolate] so
+  /// the main thread isn't blocked. On Flutter web — where
+  /// `dart:isolate` is unavailable — the work runs synchronously on the
+  /// main thread, wrapped in a [Future] to keep the signature uniform:
+  /// RSA ≥ 2048 bits can freeze the UI for seconds, so a [FortisLog]
+  /// warning is emitted to flag it. Consider pre-generating keys or
+  /// offloading to a Web Worker in that case.
   ///
   /// Key size is controlled by [keySize] (default 2048). RSA-4096 may take
   /// several seconds to generate.
@@ -163,7 +170,15 @@ class RsaBuilder<
       FortisLog.info('RSA-4096 key generation may be slow.');
     }
 
-    return Isolate.run(() => _generateSync(_keySize));
+    if (kFortisIsWeb && _keySize >= 2048) {
+      FortisLog.warn(
+        'RSA-$_keySize key generation on web blocks the main thread '
+        '(dart:isolate is unavailable). Consider pre-generating keys '
+        'or offloading to a Web Worker.',
+      );
+    }
+
+    return runOffThread(() => _generateSync(_keySize));
   }
 }
 
