@@ -40,6 +40,17 @@ keys server-side or offloading to a Web Worker if that matters.
 dart pub add fortis
 ```
 
+Or in pubspec.yaml:
+
+```yaml
+dependencies:
+  fortis: ^0.3.1
+```
+
+```dart
+import 'package:fortis/fortis.dart';
+```
+
 For a runnable end-to-end tour of the API, see [`example/example.dart`](example/example.dart).
 
 ## Learn Cryptography
