@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-07-28
+
+### Changed
+
+- Lowered the minimum SDK from Dart `^3.11.0` to `^3.8.0` — no language feature above 3.8 is used, so the package installs on toolchains back to mid-2025.
+
 ## [0.3.0] - 2026-04-24
 
 ### Added
