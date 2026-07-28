@@ -29,64 +29,11 @@ const _pkcs1Footer = '-----END RSA PRIVATE KEY-----';
 /// final restored = FortisRsaPrivateKey.fromPem(pem);
 /// ```
 class FortisRsaPrivateKey {
-  /// The underlying PointyCastle key.
-  final RSAPrivateKey key;
-
   /// Creates a [FortisRsaPrivateKey] from a raw PointyCastle [RSAPrivateKey].
   ///
   /// You usually don't call this directly — prefer the `from*` factories or
   /// [RsaBuilder.generateKeyPair].
   const FortisRsaPrivateKey(this.key);
-
-  /// Encodes this key as a PEM string.
-  ///
-  /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo) —
-  /// the widely-supported modern default. Use [RsaPrivateKeyFormat.pkcs1]
-  /// for legacy interop.
-  ///
-  /// Example:
-  /// ```dart
-  /// final pem = pair.privateKey.toPem(); // -----BEGIN PRIVATE KEY-----
-  /// final pem1 = pair.privateKey.toPem(format: RsaPrivateKeyFormat.pkcs1);
-  /// ```
-  String toPem({RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8}) {
-    final der = toDer(format: format);
-    final b64 = base64.encode(der);
-    final wrapped = _wrapBase64(b64);
-    final (header, footer) = _headers(format);
-    return '$header\n$wrapped\n$footer';
-  }
-
-  /// Encodes this key as DER bytes (binary ASN.1).
-  ///
-  /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
-  ///
-  /// Example:
-  /// ```dart
-  /// final bytes = pair.privateKey.toDer();
-  /// File('priv.der').writeAsBytesSync(bytes);
-  /// ```
-  Uint8List toDer({RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8}) {
-    return switch (format) {
-      RsaPrivateKeyFormat.pkcs8 => _encodePkcs8(),
-      RsaPrivateKeyFormat.pkcs1 => _encodePkcs1(),
-    };
-  }
-
-  /// Exports the private key as a Base64-encoded DER string.
-  ///
-  /// Convenience wrapper over [toDer]. Handy for sealed storage in secret
-  /// managers that accept strings. [format] defaults to
-  /// [RsaPrivateKeyFormat.pkcs8].
-  ///
-  /// Example:
-  /// ```dart
-  /// final b64 = pair.privateKey.toDerBase64();
-  /// secretStore.write('rsa_priv_b64', b64);
-  /// ```
-  String toDerBase64({
-    RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8,
-  }) => base64Encode(toDer(format: format));
 
   /// Imports a private key from a PEM string.
   ///
@@ -166,6 +113,59 @@ class FortisRsaPrivateKey {
       throw FortisKeyException('Invalid DER for RSA private key ($format): $e');
     }
   }
+
+  /// The underlying PointyCastle key.
+  final RSAPrivateKey key;
+
+  /// Encodes this key as a PEM string.
+  ///
+  /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo) —
+  /// the widely-supported modern default. Use [RsaPrivateKeyFormat.pkcs1]
+  /// for legacy interop.
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = pair.privateKey.toPem(); // -----BEGIN PRIVATE KEY-----
+  /// final pem1 = pair.privateKey.toPem(format: RsaPrivateKeyFormat.pkcs1);
+  /// ```
+  String toPem({RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8}) {
+    final der = toDer(format: format);
+    final b64 = base64.encode(der);
+    final wrapped = _wrapBase64(b64);
+    final (header, footer) = _headers(format);
+    return '$header\n$wrapped\n$footer';
+  }
+
+  /// Encodes this key as DER bytes (binary ASN.1).
+  ///
+  /// [format] defaults to [RsaPrivateKeyFormat.pkcs8] (PrivateKeyInfo).
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = pair.privateKey.toDer();
+  /// File('priv.der').writeAsBytesSync(bytes);
+  /// ```
+  Uint8List toDer({RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8}) {
+    return switch (format) {
+      RsaPrivateKeyFormat.pkcs8 => _encodePkcs8(),
+      RsaPrivateKeyFormat.pkcs1 => _encodePkcs1(),
+    };
+  }
+
+  /// Exports the private key as a Base64-encoded DER string.
+  ///
+  /// Convenience wrapper over [toDer]. Handy for sealed storage in secret
+  /// managers that accept strings. [format] defaults to
+  /// [RsaPrivateKeyFormat.pkcs8].
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = pair.privateKey.toDerBase64();
+  /// secretStore.write('rsa_priv_b64', b64);
+  /// ```
+  String toDerBase64({
+    RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8,
+  }) => base64Encode(toDer(format: format));
 
   Uint8List _encodePkcs1() {
     final n = key.modulus!;

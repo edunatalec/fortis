@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import '../../core/fortis_log.dart';
 import '../../core/platform.dart';
 import '../../exceptions/fortis_config_exception.dart';
-import 'aes_constants.dart';
 import 'aes_cipher.dart';
+import 'aes_constants.dart';
 import 'aes_key.dart';
 import 'aes_mode.dart';
 import 'aes_padding.dart';
@@ -31,12 +31,11 @@ import 'aes_padding.dart';
 ///    final builder = Fortis.aes().mode(runtimeMode); // AesModeBuilder
 ///    ```
 class AesBuilder {
-  final int _keySize;
-
   /// Creates an [AesBuilder] with the given key size in bits.
   ///
   /// Defaults to 256. Must be 128, 192, or 256.
   AesBuilder({int keySize = 256}) : _keySize = keySize;
+  final int _keySize;
 
   /// Sets the key size in bits. Must be 128, 192, or 256. Defaults to 256.
   ///
@@ -182,9 +181,8 @@ class AesBuilder {
 ///
 /// Call [cipher] with a [FortisAesKey] to build the concrete cipher.
 sealed class AesModeBuilder {
-  final AesMode _mode;
-
   AesModeBuilder._({required AesMode mode}) : _mode = mode;
+  final AesMode _mode;
 
   /// Builds the AES cipher for this configuration using [key].
   ///
@@ -224,11 +222,10 @@ sealed class AesModeBuilder {
 ///     .cipher(key); // AesEcbCipher
 /// ```
 final class AesEcbModeBuilder extends AesModeBuilder {
-  final AesPadding _padding;
-
   AesEcbModeBuilder._({AesPadding padding = AesPadding.pkcs7})
     : _padding = padding,
       super._(mode: AesMode.ecb);
+  final AesPadding _padding;
 
   /// Sets the padding scheme. Defaults to [AesPadding.pkcs7].
   ///
@@ -266,11 +263,10 @@ final class AesEcbModeBuilder extends AesModeBuilder {
 ///     .cipher(key); // AesStandardCipher
 /// ```
 final class AesCbcModeBuilder extends AesModeBuilder {
-  final AesPadding _padding;
-
   AesCbcModeBuilder._({AesPadding padding = AesPadding.pkcs7})
     : _padding = padding,
       super._(mode: AesMode.cbc);
+  final AesPadding _padding;
 
   /// Sets the padding scheme. Defaults to [AesPadding.pkcs7].
   ///
@@ -335,10 +331,6 @@ final class AesStreamModeBuilder extends AesModeBuilder {
 /// Both subtypes expose `aad` and `ivSize`. Use this sealed base only as a
 /// type annotation when a function should accept either GCM or CCM.
 sealed class AesAuthModeBuilder extends AesModeBuilder {
-  final Uint8List? _aad;
-  final int _tagSizeBits;
-  final int _ivSize;
-
   AesAuthModeBuilder._({
     required super.mode,
     Uint8List? aad,
@@ -348,6 +340,9 @@ sealed class AesAuthModeBuilder extends AesModeBuilder {
        _tagSizeBits = tagSizeBits,
        _ivSize = ivSize,
        super._();
+  final Uint8List? _aad;
+  final int _tagSizeBits;
+  final int _ivSize;
 
   /// Sets the Additional Authenticated Data (AAD). Subtypes override this
   /// with a covariant return type so the chain stays statically typed.

@@ -41,9 +41,6 @@ import 'ecdh_public_key.dart';
 ///     .deriveKey(theirPublicKey);
 /// ```
 class EcdhBuilder {
-  final EcdhCurve _curve;
-  final int _keySize;
-
   /// Creates an [EcdhBuilder] with the given defaults.
   ///
   /// Defaults: [curveParam] = [EcdhCurve.p256], [keySizeParam] = 256 bits.
@@ -53,6 +50,8 @@ class EcdhBuilder {
   EcdhBuilder({EcdhCurve curveParam = EcdhCurve.p256, int keySizeParam = 256})
     : _curve = curveParam,
       _keySize = keySizeParam;
+  final EcdhCurve _curve;
+  final int _keySize;
 
   /// Sets the elliptic curve used for key agreement.
   ///

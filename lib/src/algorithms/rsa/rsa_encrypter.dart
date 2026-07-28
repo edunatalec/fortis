@@ -45,18 +45,6 @@ import 'rsa_validators.dart';
 /// For larger payloads, use hybrid encryption: generate an AES key, encrypt
 /// the payload with AES, then wrap the AES key with RSA.
 class RsaEncrypter {
-  /// The public key used to encrypt.
-  final FortisRsaPublicKey key;
-
-  /// The padding scheme.
-  final RsaPadding padding;
-
-  /// The hash algorithm used by the padding scheme.
-  final RsaHash hash;
-
-  /// The label for OAEP v2.1 (null for other paddings).
-  final Uint8List? label;
-
   /// Creates an [RsaEncrypter] directly. Prefer [RsaBuilder] — this
   /// constructor is public only for advanced scenarios where you already
   /// have the padding/hash/label in hand.
@@ -93,6 +81,18 @@ class RsaEncrypter {
     required this.hash,
     this.label,
   });
+
+  /// The public key used to encrypt.
+  final FortisRsaPublicKey key;
+
+  /// The padding scheme.
+  final RsaPadding padding;
+
+  /// The hash algorithm used by the padding scheme.
+  final RsaHash hash;
+
+  /// The label for OAEP v2.1 (null for other paddings).
+  final Uint8List? label;
 
   /// Encrypts [plaintext] and returns the ciphertext as raw bytes.
   ///

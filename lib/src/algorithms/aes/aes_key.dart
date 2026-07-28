@@ -15,37 +15,7 @@ import '../../exceptions/fortis_key_exception.dart';
 ///
 /// To import an existing key, use [fromBytes] or [fromBase64].
 class FortisAesKey {
-  final Uint8List _bytes;
-
   FortisAesKey._(this._bytes);
-
-  /// The key size in bits — 128, 192, or 256.
-  ///
-  /// Example:
-  /// ```dart
-  /// final key = await Fortis.aes().keySize(192).generateKey();
-  /// print(key.keySize); // 192
-  /// ```
-  int get keySize => _bytes.length * 8;
-
-  /// Returns a copy of the raw key bytes (16, 24, or 32 bytes).
-  ///
-  /// Example:
-  /// ```dart
-  /// final bytes = key.toBytes(); // Uint8List
-  /// storeRaw(bytes);             // persist somewhere safe
-  /// ```
-  Uint8List toBytes() => Uint8List.fromList(_bytes);
-
-  /// Encodes the key as a Base64 string — convenient for storage in .env
-  /// files, databases, or JSON.
-  ///
-  /// Example:
-  /// ```dart
-  /// final encoded = key.toBase64(); // 'h0FJ...=='
-  /// final roundtrip = FortisAesKey.fromBase64(encoded);
-  /// ```
-  String toBase64() => base64Encode(_bytes);
 
   /// Imports an AES key from raw bytes.
   ///
@@ -93,6 +63,35 @@ class FortisAesKey {
       throw FortisKeyException('Invalid Base64 for AES key: $e');
     }
   }
+  final Uint8List _bytes;
+
+  /// The key size in bits — 128, 192, or 256.
+  ///
+  /// Example:
+  /// ```dart
+  /// final key = await Fortis.aes().keySize(192).generateKey();
+  /// print(key.keySize); // 192
+  /// ```
+  int get keySize => _bytes.length * 8;
+
+  /// Returns a copy of the raw key bytes (16, 24, or 32 bytes).
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = key.toBytes(); // Uint8List
+  /// storeRaw(bytes);             // persist somewhere safe
+  /// ```
+  Uint8List toBytes() => Uint8List.fromList(_bytes);
+
+  /// Encodes the key as a Base64 string — convenient for storage in .env
+  /// files, databases, or JSON.
+  ///
+  /// Example:
+  /// ```dart
+  /// final encoded = key.toBase64(); // 'h0FJ...=='
+  /// final roundtrip = FortisAesKey.fromBase64(encoded);
+  /// ```
+  String toBase64() => base64Encode(_bytes);
 
   /// Fast-path factory used internally by the builder and ECDH derivation.
   ///

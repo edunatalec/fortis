@@ -2,9 +2,9 @@ import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
 
-import '../aes/aes_key.dart';
 import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_key_exception.dart';
+import '../aes/aes_key.dart';
 import 'ecdh_private_key.dart';
 import 'ecdh_public_key.dart';
 
@@ -30,9 +30,6 @@ import 'ecdh_public_key.dart';
 /// final secret = derivation.deriveSharedSecret(theirPublicKey);
 /// ```
 class EcdhKeyDerivation {
-  final FortisEcdhPrivateKey _privateKey;
-  final int _keySize;
-
   /// Creates an [EcdhKeyDerivation] with the given [privateKey] and optional
   /// [keySize] in bits (default 256).
   ///
@@ -43,6 +40,8 @@ class EcdhKeyDerivation {
     int keySize = 256,
   }) : _privateKey = privateKey,
        _keySize = keySize;
+  final FortisEcdhPrivateKey _privateKey;
+  final int _keySize;
 
   /// Computes the raw ECDH shared secret with the given [publicKey].
   ///

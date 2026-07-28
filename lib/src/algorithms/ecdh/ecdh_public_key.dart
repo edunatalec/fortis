@@ -28,12 +28,6 @@ const _ecPublicKeyOid = '1.2.840.10045.2.1';
 /// final restored = FortisEcdhPublicKey.fromPem(pem);
 /// ```
 class FortisEcdhPublicKey {
-  /// The underlying PointyCastle key.
-  final ECPublicKey key;
-
-  /// The curve this key belongs to.
-  final EcdhCurve curve;
-
   /// Creates a [FortisEcdhPublicKey] from a raw PointyCastle [ECPublicKey]
   /// plus the [curve] it belongs to.
   ///
@@ -48,64 +42,6 @@ class FortisEcdhPublicKey {
   }
 
   const FortisEcdhPublicKey._internal(this.key, this.curve);
-
-  /// Encodes this key as a PEM string.
-  ///
-  /// Only [EcdhPublicKeyFormat.x509] supports PEM encoding — raw
-  /// uncompressed points have no PEM representation.
-  ///
-  /// Example:
-  /// ```dart
-  /// final pem = pair.publicKey.toPem(); // -----BEGIN PUBLIC KEY-----
-  /// ```
-  ///
-  /// Throws [FortisKeyException] if [format] is
-  /// [EcdhPublicKeyFormat.uncompressedPoint].
-  String toPem({EcdhPublicKeyFormat format = EcdhPublicKeyFormat.x509}) {
-    if (format == EcdhPublicKeyFormat.uncompressedPoint) {
-      throw FortisKeyException(
-        'Uncompressed point format does not support PEM encoding.',
-      );
-    }
-
-    final der = toDer(format: format);
-    final b64 = base64.encode(der);
-    final wrapped = _wrapBase64(b64);
-    return '$_x509Header\n$wrapped\n$_x509Footer';
-  }
-
-  /// Encodes this key as DER bytes (binary).
-  ///
-  /// [format] defaults to [EcdhPublicKeyFormat.x509] (SubjectPublicKeyInfo).
-  /// Use [EcdhPublicKeyFormat.uncompressedPoint] to get just the raw
-  /// `0x04 || x || y` bytes — common in wire protocols like WebPush.
-  ///
-  /// Example:
-  /// ```dart
-  /// final der = pair.publicKey.toDer(); // X.509 DER
-  /// final raw = pair.publicKey.toDer(
-  ///   format: EcdhPublicKeyFormat.uncompressedPoint,
-  /// );
-  /// ```
-  Uint8List toDer({EcdhPublicKeyFormat format = EcdhPublicKeyFormat.x509}) {
-    return switch (format) {
-      EcdhPublicKeyFormat.x509 => _encodeX509(),
-      EcdhPublicKeyFormat.uncompressedPoint => _encodeUncompressedPoint(),
-    };
-  }
-
-  /// Exports the public key as a Base64-encoded DER string.
-  ///
-  /// Convenience wrapper over [toDer]. [format] defaults to
-  /// [EcdhPublicKeyFormat.x509].
-  ///
-  /// Example:
-  /// ```dart
-  /// final b64 = pair.publicKey.toDerBase64();
-  /// sendJson({'ecdh_pub_b64': b64});
-  /// ```
-  String toDerBase64({EcdhPublicKeyFormat format = EcdhPublicKeyFormat.x509}) =>
-      base64Encode(toDer(format: format));
 
   /// Imports a public key from a PEM string.
   ///
@@ -207,6 +143,70 @@ class FortisEcdhPublicKey {
     }
   }
 
+  /// The underlying PointyCastle key.
+  final ECPublicKey key;
+
+  /// The curve this key belongs to.
+  final EcdhCurve curve;
+
+  /// Encodes this key as a PEM string.
+  ///
+  /// Only [EcdhPublicKeyFormat.x509] supports PEM encoding — raw
+  /// uncompressed points have no PEM representation.
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = pair.publicKey.toPem(); // -----BEGIN PUBLIC KEY-----
+  /// ```
+  ///
+  /// Throws [FortisKeyException] if [format] is
+  /// [EcdhPublicKeyFormat.uncompressedPoint].
+  String toPem({EcdhPublicKeyFormat format = EcdhPublicKeyFormat.x509}) {
+    if (format == EcdhPublicKeyFormat.uncompressedPoint) {
+      throw const FortisKeyException(
+        'Uncompressed point format does not support PEM encoding.',
+      );
+    }
+
+    final der = toDer(format: format);
+    final b64 = base64.encode(der);
+    final wrapped = _wrapBase64(b64);
+    return '$_x509Header\n$wrapped\n$_x509Footer';
+  }
+
+  /// Encodes this key as DER bytes (binary).
+  ///
+  /// [format] defaults to [EcdhPublicKeyFormat.x509] (SubjectPublicKeyInfo).
+  /// Use [EcdhPublicKeyFormat.uncompressedPoint] to get just the raw
+  /// `0x04 || x || y` bytes — common in wire protocols like WebPush.
+  ///
+  /// Example:
+  /// ```dart
+  /// final der = pair.publicKey.toDer(); // X.509 DER
+  /// final raw = pair.publicKey.toDer(
+  ///   format: EcdhPublicKeyFormat.uncompressedPoint,
+  /// );
+  /// ```
+  Uint8List toDer({EcdhPublicKeyFormat format = EcdhPublicKeyFormat.x509}) {
+    return switch (format) {
+      EcdhPublicKeyFormat.x509 => _encodeX509(),
+      EcdhPublicKeyFormat.uncompressedPoint => _encodeUncompressedPoint(),
+    };
+  }
+
+  /// Exports the public key as a Base64-encoded DER string.
+  ///
+  /// Convenience wrapper over [toDer]. [format] defaults to
+  /// [EcdhPublicKeyFormat.x509].
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = pair.publicKey.toDerBase64();
+  /// sendJson({'ecdh_pub_b64': b64});
+  /// ```
+  String toDerBase64({EcdhPublicKeyFormat format = EcdhPublicKeyFormat.x509}) =>
+      base64Encode(toDer(format: format));
+
   Uint8List _encodeX509() {
     final algorithmId = ASN1Sequence(
       elements: [
@@ -250,7 +250,9 @@ class FortisEcdhPublicKey {
     final domainParams = ECDomainParameters(curve.domainName);
     final point = domainParams.curve.decodePoint(pointBytes);
     if (point == null) {
-      throw FortisKeyException('Failed to decode EC point from X.509 key.');
+      throw const FortisKeyException(
+        'Failed to decode EC point from X.509 key.',
+      );
     }
 
     return FortisEcdhPublicKey(ECPublicKey(point, domainParams), curve);
@@ -261,7 +263,7 @@ class FortisEcdhPublicKey {
     EcdhCurve? curve,
   ) {
     if (curve == null) {
-      throw FortisKeyException(
+      throw const FortisKeyException(
         'curve is required when importing from uncompressed point format.',
       );
     }
@@ -269,7 +271,9 @@ class FortisEcdhPublicKey {
     final domainParams = ECDomainParameters(curve.domainName);
     final point = domainParams.curve.decodePoint(bytes);
     if (point == null) {
-      throw FortisKeyException('Failed to decode EC point from raw bytes.');
+      throw const FortisKeyException(
+        'Failed to decode EC point from raw bytes.',
+      );
     }
 
     return FortisEcdhPublicKey(ECPublicKey(point, domainParams), curve);

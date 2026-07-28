@@ -247,7 +247,7 @@ void main() {
           .deriveAesKey(alice.publicKey);
 
       final cipher = Fortis.aes().mode(AesMode.gcm).cipher(aliceAesKey);
-      final plaintext = 'my-secret-password-123';
+      const plaintext = 'my-secret-password-123';
       final encrypted = cipher.encryptToString(plaintext);
 
       final decryptCipher = Fortis.aes().mode(AesMode.gcm).cipher(bobAesKey);

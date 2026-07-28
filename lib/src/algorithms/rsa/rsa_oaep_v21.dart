@@ -124,7 +124,7 @@ Uint8List oaepV21Decrypt({
   }
 
   if (error != 0 || start == -1) {
-    throw FortisEncryptionException('Decryption error.');
+    throw const FortisEncryptionException('Decryption error.');
   }
 
   return db.sublist(start);

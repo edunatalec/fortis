@@ -18,14 +18,14 @@
 /// encryption with integrity guarantees, use GCM or CCM mode
 /// ([AesAuthPayload]).
 class AesPayload {
+  /// Creates an [AesPayload] with the given [iv] and [data].
+  const AesPayload({required this.iv, required this.data});
+
   /// The initialization vector, Base64-encoded.
   final String iv;
 
   /// The ciphertext, Base64-encoded.
   final String data;
-
-  /// Creates an [AesPayload] with the given [iv] and [data].
-  const AesPayload({required this.iv, required this.data});
 
   /// Converts this payload to a `Map<String, String>`.
   ///

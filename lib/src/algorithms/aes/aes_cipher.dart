@@ -6,13 +6,13 @@ import 'package:pointycastle/export.dart';
 
 import '../../exceptions/fortis_config_exception.dart';
 import '../../exceptions/fortis_encryption_exception.dart';
-import 'aes_constants.dart';
 import 'aes_auth_payload.dart';
+import 'aes_constants.dart';
 import 'aes_key.dart';
 import 'aes_mode.dart';
 import 'aes_padding.dart';
-import 'aes_payload.dart';
 import 'aes_paddings_impl.dart';
+import 'aes_payload.dart';
 
 /// A symmetric AES cipher that encrypts and decrypts with the same key.
 ///
@@ -57,13 +57,6 @@ import 'aes_paddings_impl.dart';
 /// - GCM: `[iv (default 12 bytes) | ciphertext | tag (16 bytes)]`
 /// - CCM: `[iv (default 11 bytes) | ciphertext | tag (16 bytes)]`
 sealed class AesCipher {
-  final AesMode _mode;
-  final FortisAesKey _key;
-  final AesPadding? _padding;
-  final Uint8List? _aad;
-  final int _tagSizeBits;
-  final int _ivSize;
-
   AesCipher._({
     required AesMode mode,
     required FortisAesKey key,
@@ -77,6 +70,12 @@ sealed class AesCipher {
        _aad = aad,
        _tagSizeBits = tagSizeBits,
        _ivSize = ivSize;
+  final AesMode _mode;
+  final FortisAesKey _key;
+  final AesPadding? _padding;
+  final Uint8List? _aad;
+  final int _tagSizeBits;
+  final int _ivSize;
 
   /// Encrypts [plaintext] and returns the combined buffer as raw bytes.
   ///
@@ -291,7 +290,7 @@ sealed class AesCipher {
 
   Uint8List _encryptEcb(Uint8List plaintext, Uint8List? iv) {
     if (iv != null) {
-      throw FortisConfigException('ECB mode does not use an IV.');
+      throw const FortisConfigException('ECB mode does not use an IV.');
     }
 
     final padding = _padding!;

@@ -22,14 +22,14 @@ import 'rsa_public_key.dart';
 ///     .decrypter(pair.privateKey);
 /// ```
 class FortisRsaKeyPair {
+  /// Creates a [FortisRsaKeyPair] with the given [publicKey] and
+  /// [privateKey]. The keys must be a genuine RSA pair; Fortis does not
+  /// validate that they match.
+  const FortisRsaKeyPair({required this.publicKey, required this.privateKey});
+
   /// The public key — share with others to receive ciphertexts.
   final FortisRsaPublicKey publicKey;
 
   /// The private key — keep secret; used to decrypt.
   final FortisRsaPrivateKey privateKey;
-
-  /// Creates a [FortisRsaKeyPair] with the given [publicKey] and
-  /// [privateKey]. The keys must be a genuine RSA pair; Fortis does not
-  /// validate that they match.
-  const FortisRsaKeyPair({required this.publicKey, required this.privateKey});
 }

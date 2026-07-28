@@ -29,18 +29,6 @@ import 'rsa_validators.dart';
 /// The [padding], [hash], and `label` (for OAEP v2.1) must match those used
 /// by the encrypter; otherwise [FortisEncryptionException] is thrown.
 class RsaDecrypter {
-  /// The private key used to decrypt.
-  final FortisRsaPrivateKey key;
-
-  /// The padding scheme.
-  final RsaPadding padding;
-
-  /// The hash algorithm used by the padding scheme.
-  final RsaHash hash;
-
-  /// The label for OAEP v2.1 (null for other paddings).
-  final Uint8List? label;
-
   /// Creates an [RsaDecrypter] directly. Prefer [RsaBuilder] — this
   /// constructor is public only for advanced scenarios.
   ///
@@ -75,6 +63,18 @@ class RsaDecrypter {
     required this.hash,
     this.label,
   });
+
+  /// The private key used to decrypt.
+  final FortisRsaPrivateKey key;
+
+  /// The padding scheme.
+  final RsaPadding padding;
+
+  /// The hash algorithm used by the padding scheme.
+  final RsaHash hash;
+
+  /// The label for OAEP v2.1 (null for other paddings).
+  final Uint8List? label;
 
   /// Decrypts [input] and returns the plaintext as raw bytes.
   ///

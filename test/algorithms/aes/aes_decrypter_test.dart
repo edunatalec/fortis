@@ -105,7 +105,7 @@ void main() {
     });
 
     test(
-      "end-to-end: encryptToPayload → toMap() → decrypt → equals original",
+      'end-to-end: encryptToPayload → toMap() → decrypt → equals original',
       () {
         final c = authCipher(AesMode.gcm);
         final payload = c.encryptToPayload(plaintext);
@@ -140,7 +140,7 @@ void main() {
     });
 
     test('throws FortisConfigException when used with CBC mode', () {
-      final payload = AesAuthPayload(iv: 'a', data: 'b', tag: 'c');
+      const payload = AesAuthPayload(iv: 'a', data: 'b', tag: 'c');
       expect(
         () => cipher(AesMode.cbc).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
@@ -148,7 +148,7 @@ void main() {
     });
 
     test('throws FortisConfigException when used with CTR mode', () {
-      final payload = AesAuthPayload(iv: 'a', data: 'b', tag: 'c');
+      const payload = AesAuthPayload(iv: 'a', data: 'b', tag: 'c');
       expect(
         () => cipher(AesMode.ctr).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
@@ -178,7 +178,7 @@ void main() {
     }
 
     test('throws FortisConfigException when used with GCM mode', () {
-      final payload = AesPayload(iv: 'a', data: 'b');
+      const payload = AesPayload(iv: 'a', data: 'b');
       expect(
         () => cipher(AesMode.gcm).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
@@ -186,7 +186,7 @@ void main() {
     });
 
     test('throws FortisConfigException when used with CCM mode', () {
-      final payload = AesPayload(iv: 'a', data: 'b');
+      const payload = AesPayload(iv: 'a', data: 'b');
       expect(
         () => cipher(AesMode.ccm).decrypt(payload),
         throwsA(isA<FortisConfigException>()),
@@ -245,7 +245,7 @@ void main() {
     });
 
     test(
-      "end-to-end: encryptToPayload → toMap() → decryptToString → equals original string",
+      'end-to-end: encryptToPayload → toMap() → decryptToString → equals original string',
       () {
         final c = authCipher(AesMode.gcm);
         final payload = c.encryptToPayload(plaintext);

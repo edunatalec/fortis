@@ -26,65 +26,12 @@ const _pkcs1Footer = '-----END RSA PUBLIC KEY-----';
 /// final restored = FortisRsaPublicKey.fromPem(pem);
 /// ```
 class FortisRsaPublicKey {
-  /// The underlying PointyCastle key.
-  final RSAPublicKey key;
-
   /// Creates a [FortisRsaPublicKey] from a raw PointyCastle [RSAPublicKey].
   ///
   /// You usually don't call this directly — prefer [FortisRsaPublicKey.fromPem],
   /// [FortisRsaPublicKey.fromDer], [FortisRsaPublicKey.fromDerBase64], or
   /// [RsaBuilder.generateKeyPair].
   const FortisRsaPublicKey(this.key);
-
-  /// Encodes this key as a PEM string.
-  ///
-  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo) —
-  /// the widely-supported default. Use [RsaPublicKeyFormat.pkcs1] for raw
-  /// PKCS#1 interop.
-  ///
-  /// Example:
-  /// ```dart
-  /// final pem = pair.publicKey.toPem(); // -----BEGIN PUBLIC KEY-----
-  /// final pem1 = pair.publicKey.toPem(format: RsaPublicKeyFormat.pkcs1);
-  /// ```
-  String toPem({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) {
-    final der = toDer(format: format);
-    final b64 = base64.encode(der);
-    final wrapped = _wrapBase64(b64);
-    final (header, footer) = _headers(format);
-    return '$header\n$wrapped\n$footer';
-  }
-
-  /// Encodes this key as DER bytes (binary ASN.1).
-  ///
-  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
-  ///
-  /// Example:
-  /// ```dart
-  /// final bytes = pair.publicKey.toDer(); // Uint8List, X.509 DER
-  /// File('pub.der').writeAsBytesSync(bytes);
-  /// ```
-  Uint8List toDer({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) {
-    return switch (format) {
-      RsaPublicKeyFormat.x509 => _encodeX509(),
-      RsaPublicKeyFormat.pkcs1 => _encodePkcs1(),
-    };
-  }
-
-  /// Exports the public key as a Base64-encoded DER string.
-  ///
-  /// Convenience wrapper over [toDer] — handy for JSON/HTTP transport
-  /// without the PEM header/footer lines.
-  ///
-  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
-  ///
-  /// Example:
-  /// ```dart
-  /// final b64 = pair.publicKey.toDerBase64();
-  /// sendJson({'rsa_pub_b64': b64});
-  /// ```
-  String toDerBase64({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) =>
-      base64Encode(toDer(format: format));
 
   /// Imports a public key from a PEM string.
   ///
@@ -168,6 +115,59 @@ class FortisRsaPublicKey {
       throw FortisKeyException('Invalid DER for RSA public key ($format): $e');
     }
   }
+
+  /// The underlying PointyCastle key.
+  final RSAPublicKey key;
+
+  /// Encodes this key as a PEM string.
+  ///
+  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo) —
+  /// the widely-supported default. Use [RsaPublicKeyFormat.pkcs1] for raw
+  /// PKCS#1 interop.
+  ///
+  /// Example:
+  /// ```dart
+  /// final pem = pair.publicKey.toPem(); // -----BEGIN PUBLIC KEY-----
+  /// final pem1 = pair.publicKey.toPem(format: RsaPublicKeyFormat.pkcs1);
+  /// ```
+  String toPem({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) {
+    final der = toDer(format: format);
+    final b64 = base64.encode(der);
+    final wrapped = _wrapBase64(b64);
+    final (header, footer) = _headers(format);
+    return '$header\n$wrapped\n$footer';
+  }
+
+  /// Encodes this key as DER bytes (binary ASN.1).
+  ///
+  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
+  ///
+  /// Example:
+  /// ```dart
+  /// final bytes = pair.publicKey.toDer(); // Uint8List, X.509 DER
+  /// File('pub.der').writeAsBytesSync(bytes);
+  /// ```
+  Uint8List toDer({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) {
+    return switch (format) {
+      RsaPublicKeyFormat.x509 => _encodeX509(),
+      RsaPublicKeyFormat.pkcs1 => _encodePkcs1(),
+    };
+  }
+
+  /// Exports the public key as a Base64-encoded DER string.
+  ///
+  /// Convenience wrapper over [toDer] — handy for JSON/HTTP transport
+  /// without the PEM header/footer lines.
+  ///
+  /// [format] defaults to [RsaPublicKeyFormat.x509] (SubjectPublicKeyInfo).
+  ///
+  /// Example:
+  /// ```dart
+  /// final b64 = pair.publicKey.toDerBase64();
+  /// sendJson({'rsa_pub_b64': b64});
+  /// ```
+  String toDerBase64({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) =>
+      base64Encode(toDer(format: format));
 
   Uint8List _encodeX509() {
     final rsaSeq = ASN1Sequence(

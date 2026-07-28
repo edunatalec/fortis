@@ -75,10 +75,6 @@ class RsaBuilder<
   P extends RsaBuilderPaddingState,
   H extends RsaBuilderHashState
 > {
-  final int _keySize;
-  final RsaPadding? _padding;
-  final RsaHash? _hash;
-
   /// Creates a builder with optional [keySizeParam], [paddingParam], and
   /// [hashParam]. Defaults: keySize = 2048, padding and hash unset.
   ///
@@ -92,6 +88,9 @@ class RsaBuilder<
   }) : _keySize = keySizeParam,
        _padding = paddingParam,
        _hash = hashParam;
+  final int _keySize;
+  final RsaPadding? _padding;
+  final RsaHash? _hash;
 
   /// Sets the RSA key size in bits used by [generateKeyPair].
   ///

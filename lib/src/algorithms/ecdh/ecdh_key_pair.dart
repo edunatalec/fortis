@@ -16,15 +16,15 @@ import 'ecdh_public_key.dart';
 ///     .deriveAesKey(remotePublicKey);
 /// ```
 class FortisEcdhKeyPair {
+  /// Creates a [FortisEcdhKeyPair] with the given [publicKey] and
+  /// [privateKey]. Both keys must use the same curve; Fortis does not
+  /// validate that here.
+  const FortisEcdhKeyPair({required this.publicKey, required this.privateKey});
+
   /// The public key — share with the other party for key agreement.
   final FortisEcdhPublicKey publicKey;
 
   /// The private key — keep secret. Used as input to
   /// [EcdhBuilder.keyDerivation].
   final FortisEcdhPrivateKey privateKey;
-
-  /// Creates a [FortisEcdhKeyPair] with the given [publicKey] and
-  /// [privateKey]. Both keys must use the same curve; Fortis does not
-  /// validate that here.
-  const FortisEcdhKeyPair({required this.publicKey, required this.privateKey});
 }

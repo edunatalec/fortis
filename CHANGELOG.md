@@ -5,6 +5,7 @@
 ### Changed
 
 - Reformatted the LICENSE into the canonical single-line-paragraph MIT template with a standardized copyright line — no change to the license terms.
+- Adopted the stricter shared analysis options (strict casts, plus async, import, immutability and bug-prone lints); source and tests adjusted to the new rules — no behavior change.
 
 ## [0.3.1] - 2026-07-28
 

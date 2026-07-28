@@ -10,7 +10,7 @@ import 'ecdh_curve.dart';
 void validateKeyCurveMatch(ECDomainParameters? params, EcdhCurve curve) {
   final actual = params?.domainName;
   if (actual == null) {
-    throw FortisKeyException(
+    throw const FortisKeyException(
       'EC key has no domain parameters; cannot verify curve.',
     );
   }

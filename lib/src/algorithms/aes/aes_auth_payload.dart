@@ -23,6 +23,13 @@
 /// final json = jsonEncode(payload.toMap(ivKey: 'nonce'));
 /// ```
 class AesAuthPayload {
+  /// Creates an [AesAuthPayload] with the given [iv], [data], and [tag].
+  const AesAuthPayload({
+    required this.iv,
+    required this.data,
+    required this.tag,
+  });
+
   /// The initialization vector (nonce), Base64-encoded.
   final String iv;
 
@@ -31,13 +38,6 @@ class AesAuthPayload {
 
   /// The authentication tag, Base64-encoded.
   final String tag;
-
-  /// Creates an [AesAuthPayload] with the given [iv], [data], and [tag].
-  const AesAuthPayload({
-    required this.iv,
-    required this.data,
-    required this.tag,
-  });
 
   /// Converts this payload to a `Map<String, String>`.
   ///
