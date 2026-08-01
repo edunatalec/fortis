@@ -28,7 +28,6 @@ CLAUDE.md
 scripts/
 analysis_options.yaml
 docs/
-CONTRIBUTING.md
 .github/
 .fvm/
 .fvmrc
