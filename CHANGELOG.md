@@ -12,6 +12,7 @@
 - API reference grouped into Core, AES, RSA, ECDH and Errors, each with its own topic page — the fifty public types no longer render as one flat alphabetical list.
 - README follows the skeleton shared by the published packages: `## Contents` lists only what comes after it, `## Features` became `## Why fortis`, and the runnable tour moved out of the Quick start into `## Example`, with the command that runs it.
 - README gained a `## Contributing` section, and links to repository files are now absolute. A relative link is rewritten to GitHub on the package page but left untouched in the generated API reference, where it resolved to a 404.
+- The multilingual guides moved from `docs/` to `guides/`, so the README links point there now. A published package does not carry `docs/`, and the folder sat one letter away from dartdoc's `doc/`, which holds the category pages.
 
 ## [0.3.2] - 2026-07-28
 

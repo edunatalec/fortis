@@ -27,7 +27,7 @@ CLAUDE.md
 .superpowers/
 scripts/
 analysis_options.yaml
-docs/
+guides/
 .github/
 .fvm/
 .fvmrc

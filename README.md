@@ -115,7 +115,7 @@ keys server-side or offloading to a Web Worker if that matters.
 
 ## Learn cryptography
 
-New to cryptography, or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Read the [cryptography guide](https://github.com/edunatalec/fortis/blob/master/docs/cryptography/en.md) — also available in [Spanish](https://github.com/edunatalec/fortis/blob/master/docs/cryptography/es.md) and [Portuguese](https://github.com/edunatalec/fortis/blob/master/docs/cryptography/pt-br.md).
+New to cryptography, or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Read the [cryptography guide](https://github.com/edunatalec/fortis/blob/master/guides/cryptography/en.md) — also available in [Spanish](https://github.com/edunatalec/fortis/blob/master/guides/cryptography/es.md) and [Portuguese](https://github.com/edunatalec/fortis/blob/master/guides/cryptography/pt-br.md).
 
 ---
 
