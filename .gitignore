@@ -1,11 +1,7 @@
 .dart_tool/
-build/
+.build/
 .packages
 pubspec.lock
-
-.flutter-plugins
-.flutter-plugins-dependencies
-.flutter-versions
 
 *.iml
 .idea/
@@ -19,28 +15,16 @@ coverage/
 lcov.info
 
 doc/api/
+doc_examples_tmp/
 
 out/
 bin/cache/
-
-*.generated.xcconfig
-*.xcworkspace/
-build/macos/
-.cocoapods/
+build/
 .metadata
-android/.gradle/
-android/app/google-services.json
-ios/Flutter/App.framework
-ios/Flutter/Flutter.podspec
-ios/Flutter/Generated.xcconfig
-ios/.symlinks/
-ios/Pods/
-windows/CMakeLists.txt.user
-windows/flutter/ephemeral/
-windows/.dart_tool/
-
-*.lock
-*.tmp
 
 CLAUDE.md
 .claude/
+.superpowers/
+
+.fvm/
+.fvmrc
