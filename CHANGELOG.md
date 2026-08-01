@@ -2,11 +2,16 @@
 
 ## [0.3.3] - 2026-08-01
 
+### Added
+
+- `CONTRIBUTING.md` now ships in the published archive, which is what makes pub.dev show the "Contributing" link in the package sidebar.
+
 ### Changed
 
 - API reference: every symbol cited in prose is now a link, each public type ends with a `See also:` block, and the library page explains how the three builders and the phantom types fit together.
 - API reference grouped into Core, AES, RSA, ECDH and Errors, each with its own topic page — the fifty public types no longer render as one flat alphabetical list.
 - README follows the skeleton shared by the published packages: `## Contents` lists only what comes after it, `## Features` became `## Why fortis`, and the runnable tour moved out of the Quick start into `## Example`, with the command that runs it.
+- README gained a `## Contributing` section, and links to repository files are now absolute. A relative link is rewritten to GitHub on the package page but left untouched in the generated API reference, where it resolved to a 404.
 
 ## [0.3.2] - 2026-07-28
 

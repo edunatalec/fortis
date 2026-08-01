@@ -81,6 +81,7 @@ final sharedCipher = Fortis.aes().gcm().cipher(sharedKey);
 - [ECDH (Elliptic Curve Diffie–Hellman)](#ecdh-elliptic-curve-diffiehellman)
 - [Error handling](#error-handling)
 - [Example](#example)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## Why fortis
@@ -114,7 +115,7 @@ keys server-side or offloading to a Web Worker if that matters.
 
 ## Learn cryptography
 
-New to cryptography, or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Read the [cryptography guide](docs/cryptography/en.md) — also available in [Spanish](docs/cryptography/es.md) and [Portuguese](docs/cryptography/pt-br.md).
+New to cryptography, or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Read the [cryptography guide](https://github.com/edunatalec/fortis/blob/master/docs/cryptography/en.md) — also available in [Spanish](https://github.com/edunatalec/fortis/blob/master/docs/cryptography/es.md) and [Portuguese](https://github.com/edunatalec/fortis/blob/master/docs/cryptography/pt-br.md).
 
 ---
 
@@ -590,12 +591,16 @@ try {
 ## Example
 
 A runnable end-to-end tour of the public API lives in
-[`example/example.dart`](example/example.dart). Run it with:
+[`example/example.dart`](https://github.com/edunatalec/fortis/blob/master/example/example.dart). Run it with:
 
 ```sh
 dart run example/example.dart
 ```
 
+## Contributing
+
+[CONTRIBUTING.md](https://github.com/edunatalec/fortis/blob/master/CONTRIBUTING.md) is the contract for whoever writes code here: the one command that has to be green before a pull request, what the two CI jobs check, and the conventions a PR must respect.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/edunatalec/fortis/blob/master/LICENSE).
