@@ -25,7 +25,7 @@ Or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  fortis: ^0.3.2
+  fortis: ^0.3.3
 ```
 
 ```dart
