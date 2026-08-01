@@ -1,8 +1,16 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The serialization format for an RSA public key.
 ///
 /// Used by [FortisRsaPublicKey.toPem] / [FortisRsaPublicKey.toDer] /
 /// [FortisRsaPublicKey.fromPem] / [FortisRsaPublicKey.fromDer]. Defaults to
 /// [x509] in all of them.
+///
+/// See also:
+///
+///  * [FortisRsaPublicKey], the type every member here applies to.
+///  * [RsaPrivateKeyFormat], the same choice on the private-key side.
 enum RsaPublicKeyFormat {
   /// X.509 / SubjectPublicKeyInfo format. **Default**, most widely supported.
   ///
@@ -13,6 +21,8 @@ enum RsaPublicKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final pem = pair.publicKey.toPem(); // X.509 PEM
   /// final key = FortisRsaPublicKey.fromPem(pem);
   /// ```
@@ -28,6 +38,8 @@ enum RsaPublicKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final pem = pair.publicKey.toPem(format: RsaPublicKeyFormat.pkcs1);
   /// final key = FortisRsaPublicKey.fromPem(
   ///   pem,

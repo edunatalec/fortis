@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The elliptic curve used for ECDH key agreement.
 ///
 /// Passed to [EcdhBuilder.curve]. Defaults to [p256].
@@ -9,6 +12,12 @@
 /// | [p256] | 128-bit  | **Default**. TLS, WebCrypto, mobile.       |
 /// | [p384] | 192-bit  | Regulated or long-lived secrets.           |
 /// | [p521] | 256-bit  | Maximum security; slower.                  |
+///
+/// See also:
+///
+///  * [EcdhBuilder.curve], which selects the curve for a key agreement.
+///  * [FortisEcdhKeyPair], generated on the selected curve.
+///  * [EcdhKeyDerivation], which rejects two keys that disagree on the curve.
 enum EcdhCurve {
   /// NIST P-256 (secp256r1). 128-bit security level. **Default**.
   ///

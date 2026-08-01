@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -30,6 +33,14 @@ const _ecPublicKeyOid = '1.2.840.10045.2.1';
 /// final pem = pair.privateKey.toPem();
 /// final restored = FortisEcdhPrivateKey.fromPem(pem);
 /// ```
+///
+/// See also:
+///
+///  * [FortisEcdhKeyPair], which carries this key alongside its public half.
+///  * [FortisEcdhPublicKey], the peer key it is combined with.
+///  * [EcdhPrivateKeyFormat], the encodings [toPem] and [toDer] accept.
+///  * [EcdhBuilder.keyDerivation], which takes this key to derive a shared
+///    secret.
 class FortisEcdhPrivateKey {
   /// Creates a [FortisEcdhPrivateKey] from a raw PointyCastle [ECPrivateKey]
   /// plus the [curve] it belongs to.
@@ -79,7 +90,7 @@ class FortisEcdhPrivateKey {
   ///
   /// Example:
   /// ```dart
-  /// final b64 = secretStore.read('ecdh_priv_b64');
+  /// final b64 = File('ecdh_priv.b64').readAsStringSync();
   /// final key = FortisEcdhPrivateKey.fromDerBase64(b64);
   /// ```
   ///
@@ -144,6 +155,8 @@ class FortisEcdhPrivateKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final pem = pair.privateKey.toPem();
   /// final sec1 = pair.privateKey.toPem(format: EcdhPrivateKeyFormat.sec1);
   /// ```
@@ -161,6 +174,8 @@ class FortisEcdhPrivateKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final bytes = pair.privateKey.toDer();
   /// File('ecdh_priv.der').writeAsBytesSync(bytes);
   /// ```
@@ -178,8 +193,10 @@ class FortisEcdhPrivateKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final b64 = pair.privateKey.toDerBase64();
-  /// secretStore.write('ecdh_priv_b64', b64);
+  /// File('ecdh_priv.b64').writeAsStringSync(b64);
   /// ```
   String toDerBase64({
     EcdhPrivateKeyFormat format = EcdhPrivateKeyFormat.pkcs8,
@@ -195,10 +212,8 @@ class FortisEcdhPrivateKey {
       curve.oid,
     ).encode();
 
-    // [0] EXPLICIT context tag for curve OID
     final tag0 = _buildExplicitContextTag(0, curveOidEncoded);
 
-    // [1] EXPLICIT context tag for public key
     final domainParams = key.parameters!;
     final publicPoint = (domainParams.G * key.d!)!.getEncoded(false);
     final publicKeyBitString = ASN1BitString(
@@ -208,7 +223,7 @@ class FortisEcdhPrivateKey {
 
     final sec1 = ASN1Sequence(
       elements: [
-        ASN1Integer.fromtInt(1), // version
+        ASN1Integer.fromtInt(1),
         ASN1OctetString(octets: dBytes),
         ASN1Object.fromBytes(tag0),
         ASN1Object.fromBytes(tag1),
@@ -219,7 +234,6 @@ class FortisEcdhPrivateKey {
   }
 
   Uint8List _encodePkcs8() {
-    // Inner SEC1 without [0] parameters (curve is in AlgorithmIdentifier)
     final dBytes = _padToFieldSize(
       _encodeBigIntAsUnsigned(key.d!),
       curve.fieldSizeBytes,
@@ -241,7 +255,7 @@ class FortisEcdhPrivateKey {
 
     final pkcs8 = ASN1Sequence(
       elements: [
-        ASN1Integer.fromtInt(0), // version
+        ASN1Integer.fromtInt(0),
         algorithmId,
         ASN1OctetString(octets: innerSec1.encode()),
       ],
@@ -258,7 +272,6 @@ class FortisEcdhPrivateKey {
     final dBytes = dOctetString.octets!;
     final d = _decodeBigIntAsUnsigned(dBytes);
 
-    // Extract curve from [0] context tag
     EcdhCurve? curve;
     for (var i = 2; i < seq.elements!.length; i++) {
       final element = seq.elements![i];
@@ -284,7 +297,6 @@ class FortisEcdhPrivateKey {
     final parser = ASN1Parser(der);
     final seq = parser.nextObject() as ASN1Sequence;
 
-    // Extract curve from AlgorithmIdentifier
     final algorithmSeq = seq.elements![1] as ASN1Sequence;
     final curveOid = (algorithmSeq.elements![1] as ASN1ObjectIdentifier)
         .objectIdentifierAsString!;
@@ -294,7 +306,6 @@ class FortisEcdhPrivateKey {
       throw FortisKeyException('Unsupported EC curve OID: $curveOid');
     }
 
-    // Extract private key from inner OCTET STRING
     final octetString = seq.elements![2] as ASN1OctetString;
     final innerParser = ASN1Parser(octetString.octets!);
     final innerSeq = innerParser.nextObject() as ASN1Sequence;

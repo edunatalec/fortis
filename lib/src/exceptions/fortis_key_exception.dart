@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'fortis_exception.dart';
 
 /// Thrown when a key cannot be imported or exported.
@@ -11,12 +14,20 @@ import 'fortis_exception.dart';
 ///
 /// Example:
 /// ```dart
+/// const corruptedPem = '-----BEGIN PUBLIC KEY-----\nnot base64\n';
+///
 /// try {
 ///   final key = FortisRsaPublicKey.fromPem(corruptedPem);
 /// } on FortisKeyException catch (e) {
 ///   print(e.message); // 'Invalid PEM for RSA public key: ...'
 /// }
 /// ```
+///
+/// See also:
+///
+///  * [FortisException], the base type to catch every Fortis error at once.
+///  * [FortisConfigException], for caller-side misconfiguration.
+///  * [FortisEncryptionException], for encrypt and decrypt failures.
 class FortisKeyException extends FortisException {
   /// Creates a [FortisKeyException] with the given [message].
   const FortisKeyException(super.message);

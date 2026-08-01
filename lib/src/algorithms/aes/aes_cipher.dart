@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -16,7 +19,7 @@ import 'aes_payload.dart';
 
 /// A symmetric AES cipher that encrypts and decrypts with the same key.
 ///
-/// `AesCipher` is a `sealed` hierarchy with three concrete variants — each one
+/// [AesCipher] is a `sealed` hierarchy with three concrete variants — each one
 /// exposed by a different mode builder so hover and autocomplete surface only
 /// the methods that make sense for the chosen mode:
 ///
@@ -26,7 +29,7 @@ import 'aes_payload.dart';
 ///   [AesMode.ofb]. Uses a 16-byte IV and returns an [AesPayload] from
 ///   [AesStandardCipher.encryptToPayload].
 /// - [AesAuthCipher] — [AesMode.gcm], [AesMode.ccm]. Authenticated encryption
-///   (AEAD) that returns an [AesAuthPayload] (with `tag`) from
+///   (AEAD) that returns an [AesAuthPayload] (with [AesAuthPayload.tag]) from
 ///   [AesAuthCipher.encryptToPayload].
 ///
 /// Example (GCM — recommended default):
@@ -56,6 +59,13 @@ import 'aes_payload.dart';
 /// - CBC / CTR / CFB / OFB: `[iv (16 bytes) | ciphertext]`
 /// - GCM: `[iv (default 12 bytes) | ciphertext | tag (16 bytes)]`
 /// - CCM: `[iv (default 11 bytes) | ciphertext | tag (16 bytes)]`
+///
+/// See also:
+///
+///  * [AesModeBuilder.cipher], which builds every concrete subtype.
+///  * [FortisAesKey], the symmetric key each of them holds.
+///  * [AesAuthPayload] and [AesPayload], the structured outputs of the two
+///    payload-capable subtypes.
 sealed class AesCipher {
   AesCipher._({
     required AesMode mode,
@@ -95,6 +105,7 @@ sealed class AesCipher {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key);
   /// final bytes = cipher.encrypt('hello fortis');
   /// ```
@@ -111,6 +122,7 @@ sealed class AesCipher {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key);
   /// final base64 = cipher.encryptToString('hello fortis');
   /// ```
@@ -132,7 +144,9 @@ sealed class AesCipher {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final ciphertext = cipher.encrypt('hello fortis');
   /// final bytes = cipher.decrypt(ciphertext); // Uint8List, String, Map, or payload
   /// ```
   ///
@@ -190,7 +204,9 @@ sealed class AesCipher {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final ciphertext = cipher.encryptToString('hello fortis');
   /// final text = cipher.decryptToString(ciphertext);
   /// ```
   String decryptToString(Object input) {
@@ -375,7 +391,7 @@ sealed class AesCipher {
   }
 
   Uint8List _encryptGcm(Uint8List plaintext, Uint8List? iv) {
-    final resolvedIv = _resolveIv(_ivSize, iv, 'GCM'); // NIST SP 800-38D
+    final resolvedIv = _resolveIv(_ivSize, iv, 'GCM');
     final cipher = GCMBlockCipher(AESEngine());
 
     cipher.init(
@@ -388,12 +404,11 @@ sealed class AesCipher {
       ),
     );
 
-    // process() returns ciphertext || auth_tag (PointyCastle appends the tag)
     return _prepend(resolvedIv, cipher.process(plaintext));
   }
 
   Uint8List _encryptCcm(Uint8List plaintext, Uint8List? iv) {
-    final resolvedIv = _resolveIv(_ivSize, iv, 'CCM'); // NIST SP 800-38C
+    final resolvedIv = _resolveIv(_ivSize, iv, 'CCM');
     final cipher = CCMBlockCipher(AESEngine());
 
     cipher.init(
@@ -508,8 +523,8 @@ sealed class AesCipher {
       );
     }
 
-    final iv = ciphertext.sublist(0, _ivSize); // NIST SP 800-38D
-    final body = ciphertext.sublist(_ivSize); // ciphertext + auth tag
+    final iv = ciphertext.sublist(0, _ivSize);
+    final body = ciphertext.sublist(_ivSize);
     final cipher = GCMBlockCipher(AESEngine());
 
     cipher.init(
@@ -540,7 +555,7 @@ sealed class AesCipher {
       );
     }
 
-    final iv = ciphertext.sublist(0, _ivSize); // NIST SP 800-38C
+    final iv = ciphertext.sublist(0, _ivSize);
     final body = ciphertext.sublist(_ivSize);
     final cipher = CCMBlockCipher(AESEngine());
 
@@ -639,19 +654,29 @@ sealed class AesCipher {
 /// interoperability. Prefer [AesAuthCipher] (GCM) in new designs.
 ///
 /// ECB does not use an IV and does not support payload encoding, so
-/// `encryptToPayload` is intentionally absent from this class.
+/// [AesStandardCipher.encryptToPayload] is intentionally absent from this
+/// class.
 ///
 /// Built via:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes().ecb().cipher(key); // AesEcbCipher
-/// final ciphertext = cipher.encrypt(dataAlignedTo16Bytes);
+/// final ciphertext = cipher.encrypt(Uint8List(32)); // 16-byte aligned
 /// ```
+///
+/// See also:
+///
+///  * [AesEcbModeBuilder], which configures the padding and builds this
+///    cipher.
+///  * [AesAuthCipher], the authenticated cipher to prefer in new designs.
+///  * [AesPadding], the schemes ECB can pad with.
 final class AesEcbCipher extends AesCipher {
   /// Creates a cipher for AES-ECB with the given [padding]. Prefer the
   /// builder: `Fortis.aes().ecb().padding(AesPadding.pkcs7).cipher(key)`.
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = AesEcbCipher(key: key, padding: AesPadding.pkcs7);
   /// ```
   AesEcbCipher({required super.key, required AesPadding padding})
@@ -666,6 +691,7 @@ final class AesEcbCipher extends AesCipher {
 ///
 /// Built via the matching mode builder:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes().cbc().cipher(key); // AesStandardCipher
 /// final payload = cipher.encryptToPayload('hello'); // AesPayload
 /// final plaintext = cipher.decryptToString(payload);
@@ -674,11 +700,18 @@ final class AesEcbCipher extends AesCipher {
 /// This class is the only place where [encryptToPayload] returns [AesPayload]
 /// (as opposed to [AesAuthPayload] on [AesAuthCipher]), so the return type is
 /// statically inferred — no cast required.
+///
+/// See also:
+///
+///  * [AesCbcModeBuilder] and [AesStreamModeBuilder], which build this cipher.
+///  * [AesPayload], the iv/data output of [encryptToPayload].
+///  * [AesAuthCipher], which adds integrity on top of confidentiality.
 final class AesStandardCipher extends AesCipher {
   /// Creates a standard (non-authenticated) AES cipher for CBC, CTR, CFB,
   /// or OFB. Prefer the builder:
   ///
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().cbc().cipher(key); // or .ctr() / .cfb() / .ofb()
   /// ```
   ///
@@ -727,6 +760,7 @@ final class AesStandardCipher extends AesCipher {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().cbc().cipher(key); // AesStandardCipher
   /// final payload = cipher.encryptToPayload('hello'); // AesPayload (no cast!)
   /// final json = jsonEncode(payload.toMap());
@@ -752,6 +786,7 @@ final class AesStandardCipher extends AesCipher {
 ///
 /// Built via the matching mode builder:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
 /// final payload = cipher.encryptToPayload('hello'); // AesAuthPayload
 /// print(payload.tag);                              // ✓ typed, no cast
@@ -760,11 +795,19 @@ final class AesStandardCipher extends AesCipher {
 /// Use [AesGcmModeBuilder] for GCM (aad, ivSize; tag fixed at 128 bits) or
 /// [AesCcmModeBuilder] for CCM (aad, ivSize, tagSize) to customize before
 /// building.
+///
+/// See also:
+///
+///  * [AesAuthModeBuilder], the sealed base of the two builders that produce
+///    this cipher.
+///  * [AesAuthPayload], the iv/data/tag output of [encryptToPayload].
+///  * [AesStandardCipher], the non-authenticated counterpart.
 final class AesAuthCipher extends AesCipher {
   /// Creates an authenticated AES cipher for GCM or CCM. Prefer the
   /// builder:
   ///
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key); // or .ccm()
   /// ```
   ///
@@ -814,6 +857,7 @@ final class AesAuthCipher extends AesCipher {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key);
   /// final payload = cipher.encryptToPayload('hello fortis');
   ///
@@ -838,7 +882,6 @@ final class AesAuthCipher extends AesCipher {
 
 void _validateAuthTagSize(AesMode mode, int tagSizeBits) {
   if (mode == AesMode.gcm) {
-    // PointyCastle only accepts 128-bit tags for GCM.
     if (tagSizeBits != 128) {
       throw FortisConfigException(
         'GCM tag size must be 128 bits, got $tagSizeBits. '
@@ -846,7 +889,6 @@ void _validateAuthTagSize(AesMode mode, int tagSizeBits) {
       );
     }
   } else {
-    // CCM: NIST SP 800-38C allows {32, 48, 64, 80, 96, 112, 128}.
     const validCcmTagSizes = {32, 48, 64, 80, 96, 112, 128};
     if (!validCcmTagSizes.contains(tagSizeBits)) {
       throw FortisConfigException(

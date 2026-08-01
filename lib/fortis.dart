@@ -1,39 +1,56 @@
-// Internal imports — builder return types for Fortis factory methods
+/// Cryptography for Dart and Flutter — AES, RSA and ECDH behind a single
+/// fluent, compile-time-checked API.
+///
+/// Three algorithm families hang off the [Fortis] entry point, each reached
+/// through its own builder: [AesBuilder] for symmetric encryption,
+/// [RsaBuilder] for asymmetric encryption, and [EcdhBuilder] for key
+/// agreement. Configuration is carried by the type system instead of being
+/// checked at runtime — phantom types stop an [RsaBuilder] from producing an
+/// encrypter before padding and hash are set, and the sealed [AesCipher]
+/// variants make each mode's payload type known statically. IVs and nonces
+/// are generated per operation and travel with the ciphertext, so there is no
+/// separate value to store, transmit or forget.
+///
+/// ```dart
+/// final key = await Fortis.aes().generateKey();
+/// final cipher = Fortis.aes().gcm().cipher(key);
+///
+/// final payload = cipher.encryptToPayload('hello fortis');
+/// final plaintext = cipher.decryptToString(payload); // 'hello fortis'
+/// ```
+///
+/// See also:
+///
+///  * [Fortis], the entry point every builder is created from.
+///  * [AesBuilder], which configures AES key size, mode and padding.
+///  * [RsaBuilder], which configures RSA key size, padding and hash.
+///  * [EcdhBuilder], which configures the curve and derives shared keys.
+///  * [FortisException], the base type of every error this library throws.
+library;
+
 import 'src/algorithms/aes/aes_builder.dart';
 import 'src/algorithms/ecdh/ecdh_builder.dart';
 import 'src/algorithms/rsa/rsa_builder.dart';
 
-// AES payload classes
 export 'src/algorithms/aes/aes_auth_payload.dart';
-// AES builder + cipher
 export 'src/algorithms/aes/aes_builder.dart';
 export 'src/algorithms/aes/aes_cipher.dart';
-// AES key
 export 'src/algorithms/aes/aes_key.dart';
-// AES enums
 export 'src/algorithms/aes/aes_mode.dart';
 export 'src/algorithms/aes/aes_padding.dart';
 export 'src/algorithms/aes/aes_payload.dart';
-// ECDH builder + key derivation
 export 'src/algorithms/ecdh/ecdh_builder.dart';
-// ECDH enums
 export 'src/algorithms/ecdh/ecdh_curve.dart';
 export 'src/algorithms/ecdh/ecdh_key_derivation.dart';
-// ECDH keys
 export 'src/algorithms/ecdh/ecdh_key_pair.dart';
 export 'src/algorithms/ecdh/ecdh_private_key.dart';
 export 'src/algorithms/ecdh/ecdh_private_key_format.dart';
 export 'src/algorithms/ecdh/ecdh_public_key.dart';
 export 'src/algorithms/ecdh/ecdh_public_key_format.dart';
-// RSA builder — includes phantom type markers (implementation details;
-// users never need to reference them directly)
 export 'src/algorithms/rsa/rsa_builder.dart';
 export 'src/algorithms/rsa/rsa_decrypter.dart';
-// RSA operations
 export 'src/algorithms/rsa/rsa_encrypter.dart';
-// RSA enums
 export 'src/algorithms/rsa/rsa_hash.dart';
-// RSA keys
 export 'src/algorithms/rsa/rsa_key_pair.dart';
 export 'src/algorithms/rsa/rsa_padding.dart';
 export 'src/algorithms/rsa/rsa_private_key.dart';
@@ -42,7 +59,6 @@ export 'src/algorithms/rsa/rsa_public_key.dart';
 export 'src/algorithms/rsa/rsa_public_key_format.dart';
 export 'src/exceptions/fortis_config_exception.dart';
 export 'src/exceptions/fortis_encryption_exception.dart';
-// Exceptions
 export 'src/exceptions/fortis_exception.dart';
 export 'src/exceptions/fortis_key_exception.dart';
 
@@ -54,8 +70,6 @@ export 'src/exceptions/fortis_key_exception.dart';
 /// - [ecdh] — ECDH key agreement (P-256, P-384, P-521) + HKDF.
 ///
 /// ```dart
-/// import 'package:fortis/fortis.dart';
-///
 /// // ─── AES (GCM — recommended default) ─────────────────────────────
 /// final key = await Fortis.aes().generateKey();          // 256-bit
 /// final cipher = Fortis.aes().gcm().cipher(key);         // AesAuthCipher
@@ -72,15 +86,24 @@ export 'src/exceptions/fortis_key_exception.dart';
 ///
 /// // ─── ECDH + HKDF → AES key ──────────────────────────────────────
 /// final ec = await Fortis.ecdh().generateKeyPair();      // P-256
+/// final remotePublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
 /// final aesKey = Fortis.ecdh()
 ///     .keyDerivation(ec.privateKey)
 ///     .deriveAesKey(remotePublicKey);
 /// ```
+///
+/// See also:
+///
+///  * [AesBuilder], returned by [aes] for symmetric encryption.
+///  * [RsaBuilder], returned by [rsa] for asymmetric encryption.
+///  * [EcdhBuilder], returned by [ecdh] for key agreement and derivation.
+///  * [FortisException], the base type of every error these builders throw.
 sealed class Fortis {
   /// Creates a new [RsaBuilder] for RSA key generation and encryption.
   ///
-  /// Defaults: `keySize` = 2048. `padding` and `hash` are unset — calling
-  /// `.encrypter()` / `.decrypter()` requires both to be configured first
+  /// Defaults: [RsaBuilder.keySize] = 2048. [RsaBuilder.padding] and
+  /// [RsaBuilder.hash] are unset — calling [RsaBuilderReady.encrypter] /
+  /// [RsaBuilderReady.decrypter] requires both to be configured first
   /// (enforced at compile time via phantom types).
   ///
   /// ```dart
@@ -96,9 +119,10 @@ sealed class Fortis {
 
   /// Creates a new [AesBuilder] for AES key generation and encryption.
   ///
-  /// Defaults: `keySize` = 256 bits. Pick the mode via a typed shortcut
-  /// ([AesBuilder.gcm], [AesBuilder.cbc], [AesBuilder.ecb], etc.) for a
-  /// statically-typed cipher, or [AesBuilder.mode] for runtime dispatch.
+  /// Defaults: [AesBuilder.keySize] = 256 bits. Pick the mode via a typed
+  /// shortcut ([AesBuilder.gcm], [AesBuilder.cbc], [AesBuilder.ecb], etc.)
+  /// for a statically-typed cipher, or [AesBuilder.mode] for runtime
+  /// dispatch.
   ///
   /// ```dart
   /// final key = await Fortis.aes().generateKey();
@@ -108,11 +132,12 @@ sealed class Fortis {
 
   /// Creates a new [EcdhBuilder] for ECDH key agreement and key derivation.
   ///
-  /// Defaults: `curve` = [EcdhCurve.p256], `keySize` = 256 bits (for
-  /// derivation). Zero-config usage:
+  /// Defaults: [EcdhBuilder.curve] = [EcdhCurve.p256],
+  /// [EcdhBuilder.keySize] = 256 bits (for derivation). Zero-config usage:
   ///
   /// ```dart
   /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// final remotePublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
   ///
   /// final aesKey = Fortis.ecdh()
   ///     .keyDerivation(pair.privateKey)

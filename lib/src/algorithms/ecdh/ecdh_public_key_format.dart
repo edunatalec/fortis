@@ -1,8 +1,19 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The serialization format for an ECDH public key.
 ///
 /// Used by [FortisEcdhPublicKey.toPem] / [FortisEcdhPublicKey.toDer] and
-/// the matching `fromPem`/`fromDer` factories. Defaults to [x509] in all
+/// the matching [FortisEcdhPublicKey.fromPem] /
+/// [FortisEcdhPublicKey.fromDer] factories. Defaults to [x509] in all
 /// of them.
+///
+/// See also:
+///
+///  * [FortisEcdhPublicKey], the key this format encodes and decodes.
+///  * [EcdhPrivateKeyFormat], the matching choice for the private half.
+///  * [EcdhCurve], which must be supplied explicitly for
+///    [uncompressedPoint].
 enum EcdhPublicKeyFormat {
   /// X.509 / SubjectPublicKeyInfo format. **Default**, most widely supported.
   ///
@@ -13,6 +24,8 @@ enum EcdhPublicKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final pem = pair.publicKey.toPem();
   /// final key = FortisEcdhPublicKey.fromPem(pem);
   /// ```
@@ -27,6 +40,8 @@ enum EcdhPublicKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final bytes = pair.publicKey.toDer(
   ///   format: EcdhPublicKeyFormat.uncompressedPoint,
   /// );

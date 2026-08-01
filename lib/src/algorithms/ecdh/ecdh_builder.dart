@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -16,14 +19,16 @@ import 'ecdh_public_key.dart';
 /// Obtain an instance via [Fortis.ecdh].
 ///
 /// **Defaults:**
-/// - `curve`: [EcdhCurve.p256] (NIST P-256, 128-bit security level)
-/// - `keySize`: 256 bits (used only by [keyDerivation])
+/// - [curve]: [EcdhCurve.p256] (NIST P-256, 128-bit security level)
+/// - [keySize]: 256 bits (used only by [keyDerivation])
 ///
 /// Zero-config usage (everything at its default):
 ///
 /// ```dart
 /// // Generate a key pair with defaults (P-256):
 /// final pair = await Fortis.ecdh().generateKeyPair();
+/// final myPrivateKey = pair.privateKey;
+/// final theirPublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
 ///
 /// // Derive a shared AES key (P-256 + HKDF-SHA256 → 256-bit AES key):
 /// final aesKey = Fortis.ecdh()
@@ -40,6 +45,13 @@ import 'ecdh_public_key.dart';
 ///     .keyDerivation(myPrivateKey)
 ///     .deriveKey(theirPublicKey);
 /// ```
+///
+/// See also:
+///
+///  * [Fortis.ecdh], which creates instances of this builder.
+///  * [EcdhCurve], the curves [curve] can select.
+///  * [FortisEcdhKeyPair], what [generateKeyPair] returns.
+///  * [EcdhKeyDerivation], what [keyDerivation] returns.
 class EcdhBuilder {
   /// Creates an [EcdhBuilder] with the given defaults.
   ///
@@ -77,9 +89,12 @@ class EcdhBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// final theirPublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
+  ///
   /// final keyBytes = Fortis.ecdh()
   ///     .keySize(512) // 64 bytes of derived key material
-  ///     .keyDerivation(myPrivateKey)
+  ///     .keyDerivation(pair.privateKey)
   ///     .deriveKey(theirPublicKey);
   /// ```
   EcdhBuilder keySize(int size) =>
@@ -114,8 +129,11 @@ class EcdhBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// final theirPublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
+  ///
   /// final aesKey = Fortis.ecdh()
-  ///     .keyDerivation(myPrivateKey)
+  ///     .keyDerivation(pair.privateKey)
   ///     .deriveAesKey(theirPublicKey);
   /// ```
   ///

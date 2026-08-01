@@ -1,9 +1,12 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:typed_data';
 
 import '../../exceptions/fortis_config_exception.dart';
 import 'rsa_padding.dart';
 
-/// Shared label/padding validation for `RsaEncrypter` and `RsaDecrypter`.
+/// Shared label/padding validation for [RsaEncrypter] and [RsaDecrypter].
 ///
 /// Only OAEP v2.1 consumes the label; other paddings would silently ignore
 /// it, so the combination is rejected at construction time.

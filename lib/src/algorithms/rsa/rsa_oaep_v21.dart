@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -12,7 +15,7 @@ import '../../exceptions/fortis_encryption_exception.dart';
 ///
 /// OAEP v2.1 differs from v2.0 in that the encoded message (EM) includes a
 /// leading 0x00 byte before the masked seed and masked DB, making EM exactly
-/// [k] bytes where [k] is the key size in bytes.
+/// `k` bytes where `k` is the key size in bytes.
 Uint8List oaepV21Encrypt({
   required RSAPublicKey key,
   required Uint8List message,
@@ -30,37 +33,30 @@ Uint8List oaepV21Encrypt({
     );
   }
 
-  // 1. lHash = Hash(label)
   final lHash = _hash(digest, label);
 
-  // 2. DB = lHash || PS || 0x01 || M
   final dbLen = k - hLen - 1;
   final db = Uint8List(dbLen);
 
   db.setAll(0, lHash);
-  // PS (zero bytes) is already initialised
+
   final separatorIdx = dbLen - message.length - 1;
 
   db[separatorIdx] = 0x01;
   db.setAll(separatorIdx + 1, message);
 
-  // 3. seed — random hLen bytes
   final seed = Uint8List.fromList(List.generate(hLen, (_) => rng.nextInt(256)));
 
-  // 4. maskedDB = DB XOR MGF1(seed, dbLen)
   final maskedDb = _xor(db, _mgf1(seed, dbLen, digest));
 
-  // 5. maskedSeed = seed XOR MGF1(maskedDB, hLen)
   final maskedSeed = _xor(seed, _mgf1(maskedDb, hLen, digest));
 
-  // 6. EM = 0x00 || maskedSeed || maskedDB
   final em = Uint8List(k);
 
   em[0] = 0x00;
   em.setAll(1, maskedSeed);
   em.setAll(1 + hLen, maskedDb);
 
-  // 7. RSA encryption — RSAEngine accepts up to inputBlockSize+1 = k bytes
   final engine = RSAEngine()..init(true, PublicKeyParameter<RSAPublicKey>(key));
   final out = Uint8List(engine.outputBlockSize);
 
@@ -87,38 +83,30 @@ Uint8List oaepV21Decrypt({
     );
   }
 
-  // lHash = Hash(label)
   final lHash = _hash(digest, label);
 
-  // RSA decryption — manual to preserve the leading 0x00 in EM
   final em = _rsaDecryptRaw(key, ciphertext);
 
-  // EM = 0x00 || maskedSeed || maskedDB
-  // Use constant-time checks to avoid timing oracles
   var error = (em[0] != 0x00) ? 1 : 0;
 
   final maskedSeed = em.sublist(1, 1 + hLen);
   final maskedDb = em.sublist(1 + hLen);
 
-  // seed = maskedSeed XOR MGF1(maskedDB, hLen)
   final seed = _xor(maskedSeed, _mgf1(maskedDb, hLen, digest));
 
-  // DB = maskedDB XOR MGF1(seed, k - hLen - 1)
   final db = _xor(maskedDb, _mgf1(seed, k - hLen - 1, digest));
 
-  // Verify lHash' == lHash (constant-time)
   for (var i = 0; i < hLen; i++) {
     error |= db[i] ^ lHash[i];
   }
 
-  // Locate the 0x01 separator after PS (constant-time search — no early exit)
   var start = -1;
   for (var i = hLen; i < db.length; i++) {
     if (start == -1) {
       if (db[i] == 0x01) {
         start = i + 1;
       } else if (db[i] != 0x00) {
-        error = 1; // invalid byte in PS
+        error = 1;
       }
     }
   }
@@ -168,7 +156,7 @@ Uint8List _mgf1(Uint8List seed, int length, Digest digest) {
   return Uint8List.fromList(output.toBytes().sublist(0, length));
 }
 
-/// RSA decryption primitive using CRT, returning exactly [k] bytes.
+/// RSA decryption primitive using CRT, returning exactly `k` bytes.
 ///
 /// Unlike [RSAEngine], this preserves any leading 0x00 bytes needed by the
 /// OAEP v2.1 EM structure.

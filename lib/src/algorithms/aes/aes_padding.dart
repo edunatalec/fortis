@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The padding scheme for AES block modes ([AesMode.ecb], [AesMode.cbc]).
 ///
 /// Stream modes ([AesMode.ctr], [AesMode.cfb], [AesMode.ofb]) and authenticated
@@ -5,6 +8,12 @@
 ///
 /// Configure via [AesCbcModeBuilder.padding] or [AesEcbModeBuilder.padding].
 /// Defaults to [pkcs7] in both.
+///
+/// See also:
+///
+///  * [AesCbcModeBuilder.padding], which applies a scheme to a CBC cipher.
+///  * [AesEcbModeBuilder.padding], which applies one to an ECB cipher.
+///  * [AesMode], which decides whether padding is used at all.
 enum AesPadding {
   /// PKCS#7 padding. Standard and unambiguous. **Recommended default.**
   ///
@@ -13,6 +22,7 @@ enum AesPadding {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes()
   ///     .cbc()
   ///     .padding(AesPadding.pkcs7)
@@ -27,6 +37,7 @@ enum AesPadding {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes()
   ///     .cbc()
   ///     .padding(AesPadding.iso7816)
@@ -43,6 +54,7 @@ enum AesPadding {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes()
   ///     .cbc()
   ///     .padding(AesPadding.zeroPadding)
@@ -56,6 +68,7 @@ enum AesPadding {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes()
   ///     .cbc()
   ///     .padding(AesPadding.noPadding)

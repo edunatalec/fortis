@@ -1,6 +1,9 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// Base class for all exceptions thrown by the Fortis library.
 ///
-/// Catch `FortisException` to handle any Fortis-originated error; catch one
+/// Catch [FortisException] to handle any Fortis-originated error; catch one
 /// of the concrete subtypes to react to a specific failure mode:
 /// - [FortisConfigException] — caller-side misconfiguration.
 /// - [FortisKeyException] — key import/export failures.
@@ -8,6 +11,10 @@
 ///
 /// Example:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
+/// final cipher = Fortis.aes().gcm().cipher(key);
+/// final ciphertext = cipher.encryptToPayload('hello fortis');
+///
 /// try {
 ///   final plaintext = cipher.decryptToString(ciphertext);
 /// } on FortisEncryptionException catch (e) {
@@ -18,6 +25,12 @@
 ///   log('fortis error: ${e.message}');
 /// }
 /// ```
+///
+/// See also:
+///
+///  * [FortisConfigException], for caller-side misconfiguration.
+///  * [FortisKeyException], for key import and export failures.
+///  * [FortisEncryptionException], for encrypt and decrypt failures.
 abstract class FortisException implements Exception {
   /// Creates a [FortisException] with the given [message].
   const FortisException(this.message);

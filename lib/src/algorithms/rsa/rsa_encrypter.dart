@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -19,6 +22,8 @@ import 'rsa_validators.dart';
 ///
 /// Build via [RsaBuilder]:
 /// ```dart
+/// final pair = await Fortis.rsa().generateKeyPair();
+///
 /// final encrypter = Fortis.rsa()
 ///     .padding(RsaPadding.oaep_v2)
 ///     .hash(RsaHash.sha256)
@@ -44,6 +49,13 @@ import 'rsa_validators.dart';
 ///
 /// For larger payloads, use hybrid encryption: generate an AES key, encrypt
 /// the payload with AES, then wrap the AES key with RSA.
+///
+/// See also:
+///
+///  * [RsaBuilder], which configures padding, hash and label and builds this
+///    type through [RsaBuilderReady.encrypter].
+///  * [RsaDecrypter], the inverse operation.
+///  * [FortisRsaPublicKey], the key this encrypter holds.
 class RsaEncrypter {
   /// Creates an [RsaEncrypter] directly. Prefer [RsaBuilder] — this
   /// constructor is public only for advanced scenarios where you already
@@ -51,6 +63,8 @@ class RsaEncrypter {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final encrypter = Fortis.rsa()
   ///     .padding(RsaPadding.oaep_v2)
   ///     .hash(RsaHash.sha256)
@@ -104,6 +118,12 @@ class RsaEncrypter {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  /// final encrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2)
+  ///     .hash(RsaHash.sha256)
+  ///     .encrypter(pair.publicKey);
+  ///
   /// final ct = encrypter.encrypt('hello fortis');
   /// ```
   ///
@@ -137,6 +157,12 @@ class RsaEncrypter {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  /// final encrypter = Fortis.rsa()
+  ///     .padding(RsaPadding.oaep_v2)
+  ///     .hash(RsaHash.sha256)
+  ///     .encrypter(pair.publicKey);
+  ///
   /// final b64 = encrypter.encryptToString('hello fortis');
   /// ```
   String encryptToString(Object plaintext) => base64Encode(encrypt(plaintext));

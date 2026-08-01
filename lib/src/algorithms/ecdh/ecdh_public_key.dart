@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -27,6 +30,14 @@ const _ecPublicKeyOid = '1.2.840.10045.2.1';
 /// final pem = pair.publicKey.toPem();
 /// final restored = FortisEcdhPublicKey.fromPem(pem);
 /// ```
+///
+/// See also:
+///
+///  * [FortisEcdhKeyPair], which carries this key alongside its private half.
+///  * [FortisEcdhPrivateKey], the local key it is combined with.
+///  * [EcdhPublicKeyFormat], the encodings [toPem] and [toDer] accept.
+///  * [EcdhKeyDerivation.deriveAesKey], which turns this peer key into a
+///    shared AES key.
 class FortisEcdhPublicKey {
   /// Creates a [FortisEcdhPublicKey] from a raw PointyCastle [ECPublicKey]
   /// plus the [curve] it belongs to.
@@ -76,6 +87,12 @@ class FortisEcdhPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// final b64 = pair.publicKey.toDerBase64();
+  /// final rawB64 = pair.publicKey.toDerBase64(
+  ///   format: EcdhPublicKeyFormat.uncompressedPoint,
+  /// );
+  ///
   /// final key = FortisEcdhPublicKey.fromDerBase64(b64); // X.509
   ///
   /// final key2 = FortisEcdhPublicKey.fromDerBase64(
@@ -113,6 +130,12 @@ class FortisEcdhPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// final der = pair.publicKey.toDer();
+  /// final rawBytes = pair.publicKey.toDer(
+  ///   format: EcdhPublicKeyFormat.uncompressedPoint,
+  /// );
+  ///
   /// final key = FortisEcdhPublicKey.fromDer(der); // X.509
   ///
   /// final key2 = FortisEcdhPublicKey.fromDer(
@@ -156,6 +179,8 @@ class FortisEcdhPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final pem = pair.publicKey.toPem(); // -----BEGIN PUBLIC KEY-----
   /// ```
   ///
@@ -182,6 +207,8 @@ class FortisEcdhPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final der = pair.publicKey.toDer(); // X.509 DER
   /// final raw = pair.publicKey.toDer(
   ///   format: EcdhPublicKeyFormat.uncompressedPoint,
@@ -201,8 +228,10 @@ class FortisEcdhPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final b64 = pair.publicKey.toDerBase64();
-  /// sendJson({'ecdh_pub_b64': b64});
+  /// final body = jsonEncode({'ecdh_pub_b64': b64});
   /// ```
   String toDerBase64({EcdhPublicKeyFormat format = EcdhPublicKeyFormat.x509}) =>
       base64Encode(toDer(format: format));

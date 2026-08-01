@@ -1,8 +1,16 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The serialization format for an RSA private key.
 ///
 /// Used by [FortisRsaPrivateKey.toPem] / [FortisRsaPrivateKey.toDer] /
 /// [FortisRsaPrivateKey.fromPem] / [FortisRsaPrivateKey.fromDer]. Defaults
 /// to [pkcs8] in all of them.
+///
+/// See also:
+///
+///  * [FortisRsaPrivateKey], the type every member here applies to.
+///  * [RsaPublicKeyFormat], the same choice on the public-key side.
 enum RsaPrivateKeyFormat {
   /// PKCS#8 / PrivateKeyInfo format. **Default**, most widely supported.
   ///
@@ -13,6 +21,8 @@ enum RsaPrivateKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final pem = pair.privateKey.toPem(); // PKCS#8 PEM
   /// final key = FortisRsaPrivateKey.fromPem(pem);
   /// ```
@@ -28,6 +38,8 @@ enum RsaPrivateKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final pem = pair.privateKey.toPem(format: RsaPrivateKeyFormat.pkcs1);
   /// final key = FortisRsaPrivateKey.fromPem(
   ///   pem,

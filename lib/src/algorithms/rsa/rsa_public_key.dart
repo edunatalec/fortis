@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -25,6 +28,13 @@ const _pkcs1Footer = '-----END RSA PUBLIC KEY-----';
 /// final pem = pair.publicKey.toPem();
 /// final restored = FortisRsaPublicKey.fromPem(pem);
 /// ```
+///
+/// See also:
+///
+///  * [RsaEncrypter], which consumes this key.
+///  * [FortisRsaPrivateKey], the matching half of the pair.
+///  * [RsaPublicKeyFormat], the X.509 / PKCS#1 choice every `to*` / `from*`
+///    member takes.
 class FortisRsaPublicKey {
   /// Creates a [FortisRsaPublicKey] from a raw PointyCastle [RSAPublicKey].
   ///
@@ -69,7 +79,8 @@ class FortisRsaPublicKey {
   ///
   /// Example:
   /// ```dart
-  /// final b64 = json['rsa_pub_b64'] as String;
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  /// final b64 = pair.publicKey.toDerBase64();
   /// final key = FortisRsaPublicKey.fromDerBase64(b64);
   /// ```
   ///
@@ -127,6 +138,8 @@ class FortisRsaPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final pem = pair.publicKey.toPem(); // -----BEGIN PUBLIC KEY-----
   /// final pem1 = pair.publicKey.toPem(format: RsaPublicKeyFormat.pkcs1);
   /// ```
@@ -144,6 +157,8 @@ class FortisRsaPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final bytes = pair.publicKey.toDer(); // Uint8List, X.509 DER
   /// File('pub.der').writeAsBytesSync(bytes);
   /// ```
@@ -163,8 +178,10 @@ class FortisRsaPublicKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final b64 = pair.publicKey.toDerBase64();
-  /// sendJson({'rsa_pub_b64': b64});
+  /// final body = jsonEncode({'rsa_pub_b64': b64});
   /// ```
   String toDerBase64({RsaPublicKeyFormat format = RsaPublicKeyFormat.x509}) =>
       base64Encode(toDer(format: format));

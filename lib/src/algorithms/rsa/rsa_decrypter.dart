@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -17,6 +20,13 @@ import 'rsa_validators.dart';
 ///
 /// Build via [RsaBuilder]:
 /// ```dart
+/// final pair = await Fortis.rsa().generateKeyPair();
+/// final ciphertext = Fortis.rsa()
+///     .padding(RsaPadding.oaep_v2)
+///     .hash(RsaHash.sha256)
+///     .encrypter(pair.publicKey)
+///     .encrypt('hello fortis');
+///
 /// final decrypter = Fortis.rsa()
 ///     .padding(RsaPadding.oaep_v2)
 ///     .hash(RsaHash.sha256)
@@ -26,14 +36,23 @@ import 'rsa_validators.dart';
 /// final text      = decrypter.decryptToString(ciphertext); // UTF-8 String
 /// ```
 ///
-/// The [padding], [hash], and `label` (for OAEP v2.1) must match those used
+/// The [padding], [hash], and [label] (for OAEP v2.1) must match those used
 /// by the encrypter; otherwise [FortisEncryptionException] is thrown.
+///
+/// See also:
+///
+///  * [RsaBuilder], which configures padding, hash and label and builds this
+///    type through [RsaBuilderReady.decrypter].
+///  * [RsaEncrypter], the inverse operation.
+///  * [FortisRsaPrivateKey], the key this decrypter holds.
 class RsaDecrypter {
   /// Creates an [RsaDecrypter] directly. Prefer [RsaBuilder] — this
   /// constructor is public only for advanced scenarios.
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final decrypter = Fortis.rsa()
   ///     .padding(RsaPadding.oaep_v2)
   ///     .hash(RsaHash.sha256)
@@ -84,6 +103,11 @@ class RsaDecrypter {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  /// final rsa = Fortis.rsa().padding(RsaPadding.oaep_v2).hash(RsaHash.sha256);
+  /// final ciphertext = rsa.encrypter(pair.publicKey).encrypt('hello fortis');
+  /// final decrypter = rsa.decrypter(pair.privateKey);
+  ///
   /// final plaintext = decrypter.decrypt(ciphertext);
   /// ```
   ///
@@ -116,6 +140,11 @@ class RsaDecrypter {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  /// final rsa = Fortis.rsa().padding(RsaPadding.oaep_v2).hash(RsaHash.sha256);
+  /// final ciphertext = rsa.encrypter(pair.publicKey).encrypt('hello fortis');
+  /// final decrypter = rsa.decrypter(pair.privateKey);
+  ///
   /// final text = decrypter.decryptToString(ciphertext);
   /// ```
   String decryptToString(Object input) => utf8.decode(decrypt(input));

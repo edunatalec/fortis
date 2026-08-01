@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -28,8 +31,15 @@ import 'aes_padding.dart';
 /// 2. **Dynamic** — useful when the mode is only known at runtime. Returns
 ///    the sealed base type [AesModeBuilder]:
 ///    ```dart
+///    final runtimeMode = AesMode.gcm;
 ///    final builder = Fortis.aes().mode(runtimeMode); // AesModeBuilder
 ///    ```
+///
+/// See also:
+///
+///  * [AesModeBuilder], the next step of the chain, which builds the cipher.
+///  * [FortisAesKey], the key this builder generates and the ciphers consume.
+///  * [AesMode], the set of modes reachable from here.
 class AesBuilder {
   /// Creates an [AesBuilder] with the given key size in bits.
   ///
@@ -57,7 +67,7 @@ class AesBuilder {
   /// Example:
   /// ```dart
   /// final key = await Fortis.aes().generateKey();     // 256-bit
-  /// final key = await Fortis.aes().keySize(192).generateKey();
+  /// final key192 = await Fortis.aes().keySize(192).generateKey();
   /// ```
   ///
   /// Throws [FortisConfigException] if the key size is not 128, 192, or 256.
@@ -73,6 +83,7 @@ class AesBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ecb().cipher(key); // AesEcbCipher
   /// ```
   AesEcbModeBuilder ecb() => AesEcbModeBuilder._();
@@ -84,6 +95,7 @@ class AesBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().cbc().cipher(key); // AesStandardCipher
   /// ```
   AesCbcModeBuilder cbc() => AesCbcModeBuilder._();
@@ -94,6 +106,7 @@ class AesBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ctr().cipher(key); // AesStandardCipher
   /// ```
   AesStreamModeBuilder ctr() => AesStreamModeBuilder._(mode: AesMode.ctr);
@@ -116,6 +129,7 @@ class AesBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
   /// final payload = cipher.encryptToPayload('hi'); // AesAuthPayload
   /// ```
@@ -130,6 +144,7 @@ class AesBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ccm().cipher(key); // AesAuthCipher
   /// ```
   AesCcmModeBuilder ccm() => AesCcmModeBuilder._();
@@ -145,11 +160,16 @@ class AesBuilder {
   /// - [AesMode.ecb] → [AesEcbModeBuilder] (exposes [AesEcbModeBuilder.padding]).
   /// - [AesMode.cbc] → [AesCbcModeBuilder] (exposes [AesCbcModeBuilder.padding]).
   /// - [AesMode.ctr] / [AesMode.cfb] / [AesMode.ofb] → [AesStreamModeBuilder].
-  /// - [AesMode.gcm] → [AesGcmModeBuilder] (exposes aad, ivSize).
-  /// - [AesMode.ccm] → [AesCcmModeBuilder] (exposes aad, ivSize, tagSize).
+  /// - [AesMode.gcm] → [AesGcmModeBuilder] (exposes [AesGcmModeBuilder.aad],
+  ///   [AesGcmModeBuilder.ivSize]).
+  /// - [AesMode.ccm] → [AesCcmModeBuilder] (exposes [AesCcmModeBuilder.aad],
+  ///   [AesCcmModeBuilder.ivSize], [AesCcmModeBuilder.tagSize]).
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
+  /// final runtimeMode = AesMode.cbc;
+  ///
   /// final builder = Fortis.aes().mode(runtimeMode);
   /// final cipher = builder.cipher(key); // AesCipher (sealed base)
   /// ```
@@ -180,6 +200,12 @@ class AesBuilder {
 /// | `Fortis.aes().ccm()` | [AesCcmModeBuilder]    | [AesAuthCipher]       |
 ///
 /// Call [cipher] with a [FortisAesKey] to build the concrete cipher.
+///
+/// See also:
+///
+///  * [AesBuilder], which creates every subtype through its typed shortcuts.
+///  * [AesCipher], the sealed cipher hierarchy [cipher] returns.
+///  * [AesAuthModeBuilder], the shared base of the two authenticated modes.
 sealed class AesModeBuilder {
   AesModeBuilder._({required AesMode mode}) : _mode = mode;
   final AesMode _mode;
@@ -196,13 +222,17 @@ sealed class AesModeBuilder {
   ///
   /// Example — typed shortcut keeps the concrete return type:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
   /// final payload = cipher.encryptToPayload('hi'); // AesAuthPayload (no cast)
   /// ```
   ///
   /// Example — dynamic dispatch returns the sealed base:
   /// ```dart
-  /// final AesCipher cipher = Fortis.aes().mode(runtimeMode).cipher(key);
+  /// final runtimeMode = AesMode.cbc;
+  /// final AesCipher runtimeCipher = Fortis.aes()
+  ///     .mode(runtimeMode)
+  ///     .cipher(key);
   /// // Pattern-match or cast to the concrete subtype to call
   /// // encryptToPayload, which is not on the base.
   /// ```
@@ -216,11 +246,18 @@ sealed class AesModeBuilder {
 ///
 /// Example:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes()
 ///     .ecb()
 ///     .padding(AesPadding.pkcs7)
 ///     .cipher(key); // AesEcbCipher
 /// ```
+///
+/// See also:
+///
+///  * [AesBuilder.ecb], which returns this builder.
+///  * [AesEcbCipher], the cipher [cipher] builds.
+///  * [AesPadding], the schemes [padding] accepts.
 final class AesEcbModeBuilder extends AesModeBuilder {
   AesEcbModeBuilder._({AesPadding padding = AesPadding.pkcs7})
     : _padding = padding,
@@ -244,8 +281,9 @@ final class AesEcbModeBuilder extends AesModeBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ecb().cipher(key); // AesEcbCipher
-  /// final bytes = cipher.encrypt(alignedData);
+  /// final bytes = cipher.encrypt(Uint8List(32));   // block-aligned
   /// final plain = cipher.decrypt(bytes);
   /// ```
   @override
@@ -257,11 +295,18 @@ final class AesEcbModeBuilder extends AesModeBuilder {
 ///
 /// Example:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes()
 ///     .cbc()
 ///     .padding(AesPadding.pkcs7)
 ///     .cipher(key); // AesStandardCipher
 /// ```
+///
+/// See also:
+///
+///  * [AesBuilder.cbc], which returns this builder.
+///  * [AesStandardCipher], the cipher [cipher] builds.
+///  * [AesStreamModeBuilder], the padding-free counterpart for CTR/CFB/OFB.
 final class AesCbcModeBuilder extends AesModeBuilder {
   AesCbcModeBuilder._({AesPadding padding = AesPadding.pkcs7})
     : _padding = padding,
@@ -282,6 +327,7 @@ final class AesCbcModeBuilder extends AesModeBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().cbc().cipher(key); // AesStandardCipher
   /// final payload = cipher.encryptToPayload('hi'); // AesPayload
   /// print('iv=${payload.iv} data=${payload.data}');
@@ -296,8 +342,16 @@ final class AesCbcModeBuilder extends AesModeBuilder {
 ///
 /// Example:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes().ctr().cipher(key); // AesStandardCipher
 /// ```
+///
+/// See also:
+///
+///  * [AesBuilder.ctr], [AesBuilder.cfb] and [AesBuilder.ofb], the three
+///    shortcuts that return this builder.
+///  * [AesStandardCipher], the cipher [cipher] builds.
+///  * [AesCbcModeBuilder], the block-mode counterpart that does take padding.
 final class AesStreamModeBuilder extends AesModeBuilder {
   AesStreamModeBuilder._({required super.mode}) : super._();
 
@@ -310,6 +364,7 @@ final class AesStreamModeBuilder extends AesModeBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ctr().cipher(key); // AesStandardCipher
   /// final payload = cipher.encryptToPayload('hi'); // AesPayload
   /// ```
@@ -326,10 +381,17 @@ final class AesStreamModeBuilder extends AesModeBuilder {
 /// - GCM has a fixed tag size of 128 bits (the only value PointyCastle
 ///   supports), so [AesGcmModeBuilder] does **not** expose a `tagSize` setter.
 /// - CCM supports tags of 32/48/64/80/96/112/128 bits per NIST SP 800-38C,
-///   so [AesCcmModeBuilder] exposes `tagSize` with validation against that set.
+///   so [AesCcmModeBuilder] exposes [AesCcmModeBuilder.tagSize] with
+///   validation against that set.
 ///
-/// Both subtypes expose `aad` and `ivSize`. Use this sealed base only as a
+/// Both subtypes expose [aad] and [ivSize]. Use this sealed base only as a
 /// type annotation when a function should accept either GCM or CCM.
+///
+/// See also:
+///
+///  * [AesAuthCipher], the AEAD cipher both subtypes build.
+///  * [AesAuthPayload], the iv/data/tag output of that cipher.
+///  * [AesModeBuilder], the base shared with the non-authenticated modes.
 sealed class AesAuthModeBuilder extends AesModeBuilder {
   AesAuthModeBuilder._({
     required super.mode,
@@ -371,12 +433,20 @@ sealed class AesAuthModeBuilder extends AesModeBuilder {
 ///
 /// Example:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes()
 ///     .gcm()
 ///     .ivSize(12)
 ///     .aad(Uint8List.fromList(utf8.encode('user-id-123')))
 ///     .cipher(key); // AesAuthCipher
 /// ```
+///
+/// See also:
+///
+///  * [AesBuilder.gcm], which returns this builder.
+///  * [AesAuthCipher], the cipher [cipher] builds.
+///  * [AesCcmModeBuilder], the other AEAD builder, whose tag size is
+///    configurable.
 final class AesGcmModeBuilder extends AesAuthModeBuilder {
   AesGcmModeBuilder._({super.aad, super.ivSize = gcmDefaultIvSize})
     : super._(mode: AesMode.gcm, tagSizeBits: 128);
@@ -389,6 +459,7 @@ final class AesGcmModeBuilder extends AesAuthModeBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes()
   ///     .gcm()
   ///     .aad(Uint8List.fromList(utf8.encode('user-id-42')))
@@ -406,6 +477,7 @@ final class AesGcmModeBuilder extends AesAuthModeBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().ivSize(12).cipher(key);
   /// ```
   ///
@@ -432,12 +504,20 @@ final class AesGcmModeBuilder extends AesAuthModeBuilder {
 ///
 /// Example:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes()
 ///     .ccm()
 ///     .ivSize(11)
 ///     .tagSize(96)
 ///     .cipher(key); // AesAuthCipher
 /// ```
+///
+/// See also:
+///
+///  * [AesBuilder.ccm], which returns this builder.
+///  * [AesAuthCipher], the cipher [cipher] builds.
+///  * [AesGcmModeBuilder], the recommended AEAD default when no external
+///    protocol demands CCM.
 final class AesCcmModeBuilder extends AesAuthModeBuilder {
   AesCcmModeBuilder._({
     super.aad,
@@ -463,7 +543,7 @@ final class AesCcmModeBuilder extends AesAuthModeBuilder {
   /// | 11 bytes    | ~4 GB (default)  |
   /// | 13 bytes    | 65,535 bytes     |
   ///
-  /// Throws [FortisConfigException] if [size] is outside [7, 13].
+  /// Throws [FortisConfigException] if [size] is outside `[7, 13]`.
   @override
   AesCcmModeBuilder ivSize(int size) {
     if (size < 7 || size > 13) {
@@ -486,6 +566,7 @@ final class AesCcmModeBuilder extends AesAuthModeBuilder {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ccm().tagSize(96).cipher(key);
   /// ```
   ///

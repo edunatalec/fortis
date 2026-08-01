@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
@@ -7,6 +10,11 @@ import 'package:pointycastle/export.dart';
 /// Data must already be block-aligned before encryption; this padding adds
 /// and removes nothing, ensuring interoperability with systems that expect
 /// raw unpadded AES output.
+///
+/// See also:
+///
+///  * [AesPadding.noPadding], the enum value that selects this scheme.
+///  * [ZeroBytePaddingImpl], the other padding Fortis implements itself.
 class NoPaddingImpl implements Padding {
   @override
   String get algorithmName => 'NoPadding';
@@ -20,9 +28,9 @@ class NoPaddingImpl implements Padding {
   @override
   int padCount(Uint8List data) => 0;
 
-  // Required by the Padding interface but never invoked by PaddedBlockCipherImpl,
-  // which uses addPadding/padCount instead. Throws loudly if some future
-  // PointyCastle release starts calling it.
+  /// Required by the `Padding` interface but never invoked by
+  /// `PaddedBlockCipherImpl`, which uses [addPadding] and [padCount] instead.
+  /// Throws loudly if some future PointyCastle release starts calling it.
   @override
   Uint8List process(bool pad, Uint8List data) =>
       throw UnsupportedError('NoPaddingImpl.process is not used by Fortis.');
@@ -31,6 +39,11 @@ class NoPaddingImpl implements Padding {
 /// Custom zero-byte padding implementation.
 ///
 /// ⚠️ Ambiguous if data legitimately ends with `0x00` bytes. Prefer PKCS#7.
+///
+/// See also:
+///
+///  * [AesPadding.zeroPadding], the enum value that selects this scheme.
+///  * [AesPadding.pkcs7], the unambiguous default to prefer.
 class ZeroBytePaddingImpl implements Padding {
   @override
   String get algorithmName => 'ZeroBytePadding';
@@ -60,9 +73,9 @@ class ZeroBytePaddingImpl implements Padding {
     return data.length - 1 - i;
   }
 
-  // Required by the Padding interface but never invoked by PaddedBlockCipherImpl,
-  // which uses addPadding/padCount instead. Throws loudly if some future
-  // PointyCastle release starts calling it.
+  /// Required by the `Padding` interface but never invoked by
+  /// `PaddedBlockCipherImpl`, which uses [addPadding] and [padCount] instead.
+  /// Throws loudly if some future PointyCastle release starts calling it.
   @override
   Uint8List process(bool pad, Uint8List data) => throw UnsupportedError(
     'ZeroBytePaddingImpl.process is not used by Fortis.',

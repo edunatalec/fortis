@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'fortis_exception.dart';
 
 /// Thrown when the builder or caller input is misconfigured.
@@ -18,6 +21,12 @@ import 'fortis_exception.dart';
 ///   print(e.message); // 'AES key size must be 128, 192, or 256 bits...'
 /// }
 /// ```
+///
+/// See also:
+///
+///  * [FortisException], the base type to catch every Fortis error at once.
+///  * [FortisKeyException], for key import and export failures.
+///  * [FortisEncryptionException], for encrypt and decrypt failures.
 class FortisConfigException extends FortisException {
   /// Creates a [FortisConfigException] with the given [message].
   const FortisConfigException(super.message);

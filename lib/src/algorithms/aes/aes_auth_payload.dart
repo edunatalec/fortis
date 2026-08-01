@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The output of an AES authenticated encryption operation
 /// ([AesMode.gcm], [AesMode.ccm]).
 ///
@@ -15,6 +18,7 @@
 /// statically inferred (no cast required):
 ///
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
 /// final AesAuthPayload payload = cipher.encryptToPayload('hello');
 /// print(payload.tag);                             // typed — no cast
@@ -22,6 +26,13 @@
 /// // Serialize for a .NET/Java backend that expects 'nonce':
 /// final json = jsonEncode(payload.toMap(ivKey: 'nonce'));
 /// ```
+///
+/// See also:
+///
+///  * [AesAuthCipher.encryptToPayload], which produces this payload.
+///  * [AesPayload], the same output for the non-authenticated modes — no
+///    [tag], because those modes provide no integrity guarantee.
+///  * [AesCipher.decrypt], which accepts this payload back for decryption.
 class AesAuthPayload {
   /// Creates an [AesAuthPayload] with the given [iv], [data], and [tag].
   const AesAuthPayload({
@@ -47,8 +58,12 @@ class AesAuthPayload {
   ///
   /// Example:
   /// ```dart
-  /// payload.toMap()               // {'iv': '...', 'data': '...', 'tag': '...'}
-  /// payload.toMap(ivKey: 'nonce') // {'nonce': '...', 'data': '...', 'tag': '...'}
+  /// final key = await Fortis.aes().generateKey();
+  /// final cipher = Fortis.aes().gcm().cipher(key);
+  /// final payload = cipher.encryptToPayload('hello');
+  ///
+  /// print(payload.toMap());               // {'iv': '...', 'data': '...', 'tag': '...'}
+  /// print(payload.toMap(ivKey: 'nonce')); // {'nonce': '...', 'data': '...', 'tag': '...'}
   /// ```
   Map<String, String> toMap({String ivKey = 'iv'}) => {
     ivKey: iv,

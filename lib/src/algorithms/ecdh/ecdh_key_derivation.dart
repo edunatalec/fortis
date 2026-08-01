@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:typed_data';
 
 import 'package:pointycastle/export.dart';
@@ -16,9 +19,12 @@ import 'ecdh_public_key.dart';
 /// For raw shared secret bytes (without HKDF), use [deriveSharedSecret].
 ///
 /// ```dart
+/// final pair = await Fortis.ecdh().generateKeyPair();
+/// final theirPublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
+///
 /// final derivation = Fortis.ecdh()
 ///     .curve(EcdhCurve.p256)
-///     .keyDerivation(myPrivateKey);
+///     .keyDerivation(pair.privateKey);
 ///
 /// // Derive raw key bytes
 /// final keyBytes = derivation.deriveKey(theirPublicKey);
@@ -29,6 +35,14 @@ import 'ecdh_public_key.dart';
 /// // Or get the raw shared secret
 /// final secret = derivation.deriveSharedSecret(theirPublicKey);
 /// ```
+///
+/// See also:
+///
+///  * [EcdhBuilder.keyDerivation], which builds this type with a validated
+///    key size.
+///  * [FortisEcdhPublicKey], the peer key every derivation takes.
+///  * [FortisAesKey], the symmetric key [deriveAesKey] returns.
+///  * [EcdhCurve], which both keys must agree on.
 class EcdhKeyDerivation {
   /// Creates an [EcdhKeyDerivation] with the given [privateKey] and optional
   /// [keySize] in bits (default 256).
@@ -56,8 +70,11 @@ class EcdhKeyDerivation {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// final theirPublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
+  ///
   /// final secret = Fortis.ecdh()
-  ///     .keyDerivation(myPrivateKey)
+  ///     .keyDerivation(pair.privateKey)
   ///     .deriveSharedSecret(theirPublicKey);
   /// ```
   ///
@@ -89,8 +106,12 @@ class EcdhKeyDerivation {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  /// final theirPublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
+  /// final randomSalt = Uint8List(16);
+  ///
   /// final bytes = Fortis.ecdh()
-  ///     .keyDerivation(myPrivateKey)
+  ///     .keyDerivation(pair.privateKey)
   ///     .deriveKey(
   ///       theirPublicKey,
   ///       salt: randomSalt,
@@ -111,13 +132,15 @@ class EcdhKeyDerivation {
   /// Derives a ready-to-use [FortisAesKey] from the ECDH shared secret
   /// with [publicKey].
   ///
-  /// Uses HKDF (RFC 5869) with SHA-256. The configured `keySize` must be
-  /// 128, 192, or 256 bits (valid AES key sizes).
+  /// Uses HKDF (RFC 5869) with SHA-256. The configured [EcdhBuilder.keySize]
+  /// must be 128, 192, or 256 bits (valid AES key sizes).
   ///
   /// Typical handshake flow:
   /// ```dart
   /// final pair = await Fortis.ecdh().generateKeyPair();
   /// // ... exchange public keys with the peer ...
+  /// final peerPublicKey = (await Fortis.ecdh().generateKeyPair()).publicKey;
+  ///
   /// final aesKey = Fortis.ecdh()
   ///     .keyDerivation(pair.privateKey)
   ///     .deriveAesKey(peerPublicKey);
@@ -150,6 +173,9 @@ class EcdhKeyDerivation {
   ///
   /// Example:
   /// ```dart
+  /// final preSharedSecret = Uint8List(32);
+  /// final sessionSalt = Uint8List(16);
+  ///
   /// final keyBytes = EcdhKeyDerivation.hkdf(
   ///   preSharedSecret,
   ///   keySize: 256,
@@ -189,6 +215,9 @@ class EcdhKeyDerivation {
   ///
   /// Example:
   /// ```dart
+  /// final preSharedSecret = Uint8List(32);
+  /// final sessionSalt = Uint8List(16);
+  ///
   /// final aesKey = EcdhKeyDerivation.hkdfDeriveAesKey(
   ///   preSharedSecret,
   ///   salt: sessionSalt,

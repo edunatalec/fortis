@@ -1,5 +1,8 @@
 // ignore_for_file: constant_identifier_names
 
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The AES cipher mode of operation.
 ///
 /// Passed to [AesBuilder.mode] when the mode is only known at runtime. For
@@ -9,12 +12,21 @@
 ///
 /// Example:
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
+///
 /// // Dynamic:
 /// final builder = Fortis.aes().mode(AesMode.gcm);
 ///
 /// // Typed (preferred):
 /// final cipher = Fortis.aes().gcm().cipher(key); // AesAuthCipher
 /// ```
+///
+/// See also:
+///
+///  * [AesBuilder.mode], which takes this enum when the mode is only known
+///    at runtime.
+///  * [AesCipher], whose concrete subtype is decided by the mode chosen here.
+///  * [AesPadding], which applies to [ecb] and [cbc] only.
 enum AesMode {
   /// Electronic Code Book mode.
   ///
@@ -26,6 +38,7 @@ enum AesMode {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ecb().cipher(key);
   /// ```
   ///
@@ -40,6 +53,7 @@ enum AesMode {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes()
   ///     .cbc()
   ///     .padding(AesPadding.pkcs7)
@@ -57,6 +71,7 @@ enum AesMode {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ctr().cipher(key);
   /// ```
   ///
@@ -73,6 +88,7 @@ enum AesMode {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().gcm().cipher(key);
   /// final payload = cipher.encryptToPayload('hi'); // AesAuthPayload
   /// ```
@@ -88,6 +104,7 @@ enum AesMode {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().cfb().cipher(key);
   /// ```
   ///
@@ -102,6 +119,7 @@ enum AesMode {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ofb().cipher(key);
   /// ```
   ///
@@ -120,6 +138,7 @@ enum AesMode {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final cipher = Fortis.aes().ccm().cipher(key);
   /// ```
   ///

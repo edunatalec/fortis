@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -28,6 +31,13 @@ const _pkcs1Footer = '-----END RSA PRIVATE KEY-----';
 /// final pem = pair.privateKey.toPem();
 /// final restored = FortisRsaPrivateKey.fromPem(pem);
 /// ```
+///
+/// See also:
+///
+///  * [RsaDecrypter], which consumes this key.
+///  * [FortisRsaPublicKey], the matching half of the pair.
+///  * [RsaPrivateKeyFormat], the PKCS#8 / PKCS#1 choice every `to*` / `from*`
+///    member takes.
 class FortisRsaPrivateKey {
   /// Creates a [FortisRsaPrivateKey] from a raw PointyCastle [RSAPrivateKey].
   ///
@@ -68,7 +78,8 @@ class FortisRsaPrivateKey {
   ///
   /// Example:
   /// ```dart
-  /// final b64 = secretStore.read('rsa_priv_b64');
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  /// final b64 = pair.privateKey.toDerBase64();
   /// final key = FortisRsaPrivateKey.fromDerBase64(b64);
   /// ```
   ///
@@ -125,6 +136,8 @@ class FortisRsaPrivateKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final pem = pair.privateKey.toPem(); // -----BEGIN PRIVATE KEY-----
   /// final pem1 = pair.privateKey.toPem(format: RsaPrivateKeyFormat.pkcs1);
   /// ```
@@ -142,6 +155,8 @@ class FortisRsaPrivateKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final bytes = pair.privateKey.toDer();
   /// File('priv.der').writeAsBytesSync(bytes);
   /// ```
@@ -160,8 +175,10 @@ class FortisRsaPrivateKey {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final b64 = pair.privateKey.toDerBase64();
-  /// secretStore.write('rsa_priv_b64', b64);
+  /// File('rsa_priv.b64').writeAsStringSync(b64);
   /// ```
   String toDerBase64({
     RsaPrivateKeyFormat format = RsaPrivateKeyFormat.pkcs8,
@@ -179,7 +196,7 @@ class FortisRsaPrivateKey {
 
     return ASN1Sequence(
       elements: [
-        ASN1Integer.fromtInt(0), // version
+        ASN1Integer.fromtInt(0),
         ASN1Integer(n),
         ASN1Integer(e),
         ASN1Integer(d),
@@ -209,9 +226,7 @@ class FortisRsaPrivateKey {
   static FortisRsaPrivateKey _decodePkcs1(Uint8List der) {
     final parser = ASN1Parser(der);
     final seq = parser.nextObject() as ASN1Sequence;
-    // version is seq.elements![0], skip it
     final n = (seq.elements![1] as ASN1Integer).integer!;
-    // e is seq.elements![2], not needed for RSAPrivateKey construction
     final d = (seq.elements![3] as ASN1Integer).integer!;
     final p = (seq.elements![4] as ASN1Integer).integer!;
     final q = (seq.elements![5] as ASN1Integer).integer!;
@@ -221,7 +236,6 @@ class FortisRsaPrivateKey {
   static FortisRsaPrivateKey _decodePkcs8(Uint8List der) {
     final parser = ASN1Parser(der);
     final seq = parser.nextObject() as ASN1Sequence;
-    // PKCS#8: SEQUENCE { version, AlgorithmIdentifier, OCTET STRING { pkcs1 } }
     final octetString = seq.elements![2] as ASN1OctetString;
     final pkcs1Der = octetString.octets!;
     return _decodePkcs1(pkcs1Der);

@@ -1,8 +1,17 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The serialization format for an ECDH private key.
 ///
 /// Used by [FortisEcdhPrivateKey.toPem] / [FortisEcdhPrivateKey.toDer] and
-/// the matching `fromPem`/`fromDer` factories. Defaults to [pkcs8] in all
+/// the matching [FortisEcdhPrivateKey.fromPem] /
+/// [FortisEcdhPrivateKey.fromDer] factories. Defaults to [pkcs8] in all
 /// of them.
+///
+/// See also:
+///
+///  * [FortisEcdhPrivateKey], the key this format encodes and decodes.
+///  * [EcdhPublicKeyFormat], the matching choice for the public half.
 enum EcdhPrivateKeyFormat {
   /// PKCS#8 / PrivateKeyInfo format. **Default**, most widely supported.
   ///
@@ -13,6 +22,8 @@ enum EcdhPrivateKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final pem = pair.privateKey.toPem(); // PKCS#8 PEM
   /// final key = FortisEcdhPrivateKey.fromPem(pem);
   /// ```
@@ -27,6 +38,8 @@ enum EcdhPrivateKeyFormat {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.ecdh().generateKeyPair();
+  ///
   /// final pem = pair.privateKey.toPem(
   ///   format: EcdhPrivateKeyFormat.sec1,
   /// );

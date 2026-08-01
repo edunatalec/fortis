@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'rsa_private_key.dart';
 import 'rsa_public_key.dart';
 
@@ -21,6 +24,12 @@ import 'rsa_public_key.dart';
 ///     .hash(RsaHash.sha256)
 ///     .decrypter(pair.privateKey);
 /// ```
+///
+/// See also:
+///
+///  * [RsaBuilder.generateKeyPair], which produces this pair.
+///  * [FortisRsaPublicKey] and [FortisRsaPrivateKey], the two halves and
+///    their PEM/DER serialization.
 class FortisRsaKeyPair {
   /// Creates a [FortisRsaKeyPair] with the given [publicKey] and
   /// [privateKey]. The keys must be a genuine RSA pair; Fortis does not

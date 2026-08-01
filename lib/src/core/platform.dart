@@ -3,8 +3,8 @@
 ///
 /// Resolved at compile time via conditional exports:
 ///
-/// - VM / mobile / desktop → [platform_vm.dart] — uses `dart:isolate`.
-/// - Flutter web (dart2js / dart2wasm) → [platform_web.dart] — runs
+/// - VM / mobile / desktop → `platform_vm.dart` — uses `dart:isolate`.
+/// - Flutter web (dart2js / dart2wasm) → `platform_web.dart` — runs
 ///   synchronously since `dart:isolate` is unavailable there.
 ///
 /// Exposes [runOffThread] and [kFortisIsWeb] to the rest of the package.

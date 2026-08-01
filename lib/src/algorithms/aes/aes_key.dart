@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -14,6 +17,14 @@ import '../../exceptions/fortis_key_exception.dart';
 /// ```
 ///
 /// To import an existing key, use [fromBytes] or [fromBase64].
+///
+/// See also:
+///
+///  * [AesBuilder.generateKey], which produces a random key of the
+///    configured size.
+///  * [AesModeBuilder.cipher], which turns this key into an [AesCipher].
+///  * [EcdhKeyDerivation.deriveAesKey], which derives one from a shared
+///    secret instead of generating it.
 class FortisAesKey {
   FortisAesKey._(this._bytes);
 
@@ -26,7 +37,8 @@ class FortisAesKey {
   ///
   /// Example:
   /// ```dart
-  /// final key = FortisAesKey.fromBytes(myRandomBytes); // must be 16/24/32
+  /// final randomBytes = (await Fortis.aes().generateKey()).toBytes();
+  /// final key = FortisAesKey.fromBytes(randomBytes); // must be 16/24/32
   /// ```
   ///
   /// Throws [FortisKeyException] if the byte length is not valid.
@@ -47,7 +59,8 @@ class FortisAesKey {
   ///
   /// Example:
   /// ```dart
-  /// final key = FortisAesKey.fromBase64(envVar('AES_KEY_B64'));
+  /// final stored = (await Fortis.aes().generateKey()).toBase64();
+  /// final key = FortisAesKey.fromBase64(stored);
   /// ```
   ///
   /// Throws [FortisKeyException] if the string is not valid Base64, or if
@@ -78,8 +91,9 @@ class FortisAesKey {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final bytes = key.toBytes(); // Uint8List
-  /// storeRaw(bytes);             // persist somewhere safe
+  /// print(bytes.length);         // 32
   /// ```
   Uint8List toBytes() => Uint8List.fromList(_bytes);
 
@@ -88,6 +102,7 @@ class FortisAesKey {
   ///
   /// Example:
   /// ```dart
+  /// final key = await Fortis.aes().generateKey();
   /// final encoded = key.toBase64(); // 'h0FJ...=='
   /// final roundtrip = FortisAesKey.fromBase64(encoded);
   /// ```
@@ -97,8 +112,8 @@ class FortisAesKey {
   ///
   /// Still validates the byte length since the symbol is exported publicly
   /// — accepting an invalid size here would surface as a cryptic PointyCastle
-  /// error on the first `encrypt` call. Prefer [fromBytes] in application
-  /// code.
+  /// error on the first [AesCipher.encrypt] call. Prefer [fromBytes] in
+  /// application code.
   static FortisAesKey fromTrustedBytes(Uint8List bytes) =>
       FortisAesKey.fromBytes(bytes);
 }

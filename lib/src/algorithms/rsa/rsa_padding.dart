@@ -1,10 +1,14 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 // ignore_for_file: constant_identifier_names
 
 /// The RSA padding scheme used by [RsaEncrypter] and [RsaDecrypter].
 ///
 /// Passed to [RsaBuilder.padding]. Padding is **mandatory** — RSA without
 /// padding is insecure. There is no default; the phantom-typed builder
-/// won't let you call `.encrypter()` / `.decrypter()` until you pick one.
+/// won't let you call [RsaBuilderReady.encrypter] /
+/// [RsaBuilderReady.decrypter] until you pick one.
 ///
 /// Selection guide:
 ///
@@ -14,6 +18,12 @@
 /// | [oaep_v2]       | New designs. No label support.            |
 /// | [oaep_v1]       | Legacy — SHA-1 only. Avoid.               |
 /// | [pkcs1_v1_5]    | Legacy interop only (TLS ≤ 1.1, old CMS). |
+///
+/// See also:
+///
+///  * [RsaBuilder.padding], which takes this value.
+///  * [RsaHash], the other half of the padding configuration.
+///  * [RsaEncrypter] and [RsaDecrypter], which must agree on it.
 enum RsaPadding {
   /// PKCS#1 v1.5 padding (RFC 8017 §7.2). Legacy; still widely supported.
   ///
@@ -23,6 +33,8 @@ enum RsaPadding {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final encrypter = Fortis.rsa()
   ///     .padding(RsaPadding.pkcs1_v1_5)
   ///     .hash(RsaHash.sha256) // ignored, but still required by the builder
@@ -37,6 +49,8 @@ enum RsaPadding {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final encrypter = Fortis.rsa()
   ///     .padding(RsaPadding.oaep_v1)
   ///     .hash(RsaHash.sha1)
@@ -52,6 +66,8 @@ enum RsaPadding {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final encrypter = Fortis.rsa()
   ///     .padding(RsaPadding.oaep_v2)
   ///     .hash(RsaHash.sha256)
@@ -67,6 +83,8 @@ enum RsaPadding {
   ///
   /// Example (with label):
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final encrypter = Fortis.rsa()
   ///     .padding(RsaPadding.oaep_v2_1)
   ///     .hash(RsaHash.sha256)

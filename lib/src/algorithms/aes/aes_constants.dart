@@ -1,6 +1,5 @@
-// Internal constants shared by AES cipher, builder, and padding impls.
-//
-// Not exported from `package:fortis/fortis.dart`.
+/// @docImport 'package:fortis/fortis.dart';
+library;
 
 /// AES block size in bytes (fixed by the AES spec — always 16).
 const aesBlockSize = 16;

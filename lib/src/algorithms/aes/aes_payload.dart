@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 /// The output of an AES non-authenticated encryption operation
 /// ([AesMode.cbc], [AesMode.ctr], [AesMode.cfb], [AesMode.ofb]).
 ///
@@ -9,6 +12,7 @@
 /// statically inferred (no cast required):
 ///
 /// ```dart
+/// final key = await Fortis.aes().generateKey();
 /// final cipher = Fortis.aes().cbc().cipher(key); // AesStandardCipher
 /// final AesPayload payload = cipher.encryptToPayload('hello');
 /// final json = jsonEncode(payload.toMap());
@@ -17,6 +21,13 @@
 /// These modes do not produce an authentication tag. For authenticated
 /// encryption with integrity guarantees, use GCM or CCM mode
 /// ([AesAuthPayload]).
+///
+/// See also:
+///
+///  * [AesStandardCipher.encryptToPayload], which produces this payload.
+///  * [AesAuthPayload], the richer output of GCM/CCM, carrying an
+///    authentication tag on top of [iv] and [data].
+///  * [AesCipher.decrypt], which accepts this payload back for decryption.
 class AesPayload {
   /// Creates an [AesPayload] with the given [iv] and [data].
   const AesPayload({required this.iv, required this.data});
@@ -35,8 +46,12 @@ class AesPayload {
   ///
   /// Example:
   /// ```dart
-  /// payload.toMap()                // {'iv': '...', 'data': '...'}
-  /// payload.toMap(ivKey: 'nonce')  // {'nonce': '...', 'data': '...'}
+  /// final key = await Fortis.aes().generateKey();
+  /// final cipher = Fortis.aes().cbc().cipher(key);
+  /// final payload = cipher.encryptToPayload('hello');
+  ///
+  /// print(payload.toMap());                // {'iv': '...', 'data': '...'}
+  /// print(payload.toMap(ivKey: 'nonce'));  // {'nonce': '...', 'data': '...'}
   /// ```
   Map<String, String> toMap({String ivKey = 'iv'}) => {ivKey: iv, 'data': data};
 }

@@ -1,3 +1,6 @@
+/// @docImport 'package:fortis/fortis.dart';
+library;
+
 // ignore_for_file: constant_identifier_names
 
 import 'package:pointycastle/export.dart';
@@ -5,7 +8,8 @@ import 'package:pointycastle/export.dart';
 /// The hash algorithm used inside RSA padding schemes (OAEP MGF1).
 ///
 /// Passed to [RsaBuilder.hash]. Defaults to none — the phantom-typed builder
-/// requires you to call [RsaBuilder.hash] before `.encrypter()`/`.decrypter()`.
+/// requires you to call [RsaBuilder.hash] before [RsaBuilderReady.encrypter] /
+/// [RsaBuilderReady.decrypter].
 ///
 /// Selection guide:
 ///
@@ -16,7 +20,8 @@ import 'package:pointycastle/export.dart';
 /// | [sha512]       | Paired with RSA-4096+ (note: reduces max msg). |
 /// | [sha224]       | Legacy interop; avoid for new designs.         |
 /// | [sha1]         | Legacy only. Cryptographically broken.         |
-/// | [sha3_256/512] | Interop with systems that require SHA-3.       |
+/// | [sha3_256]     | Interop with systems that require SHA-3.       |
+/// | [sha3_512]     | Same, with a 512-bit digest.                   |
 ///
 /// Larger hashes leave less room for the plaintext: with OAEP, the maximum
 /// message size is `keyBytes − 2·hashBytes − 2` (e.g. RSA-2048 + SHA-256
@@ -24,11 +29,19 @@ import 'package:pointycastle/export.dart';
 ///
 /// Note: [RsaPadding.pkcs1_v1_5] and [RsaPadding.oaep_v1] ignore this choice
 /// (PKCS#1 v1.5 has no hash; OAEP v1 is hard-wired to SHA-1).
+///
+/// See also:
+///
+///  * [RsaBuilder.hash], which takes this value.
+///  * [RsaPadding], the other half of the padding configuration.
+///  * [RsaEncrypter] and [RsaDecrypter], which must agree on it.
 enum RsaHash {
   /// SHA-1 (160-bit). Legacy; avoid in new designs.
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final encrypter = Fortis.rsa()
   ///     .padding(RsaPadding.oaep_v1)
   ///     .hash(RsaHash.sha1)
@@ -43,6 +56,8 @@ enum RsaHash {
   ///
   /// Example:
   /// ```dart
+  /// final pair = await Fortis.rsa().generateKeyPair();
+  ///
   /// final encrypter = Fortis.rsa()
   ///     .padding(RsaPadding.oaep_v2)
   ///     .hash(RsaHash.sha256)
