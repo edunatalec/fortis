@@ -1,38 +1,19 @@
-# Fortis
-
 [![pub package](https://img.shields.io/pub/v/fortis.svg)](https://pub.dev/packages/fortis)
 [![package publisher](https://img.shields.io/pub/publisher/fortis.svg)](https://pub.dev/packages/fortis/publisher)
 
 High-level cryptography for Dart. Fluent builder API with compile-time safety, sane defaults, and seamless cross-platform interoperability.
 
-## Features
+Fortis covers encryption and key agreement — AES, RSA, and ECDH. It does not sign, hash, authenticate messages, or derive keys from passwords.
 
-- **AES** encryption with 7 cipher modes (ECB, CBC, CTR, CFB, OFB, GCM, CCM)
-- **RSA** encryption with 4 padding schemes (PKCS#1 v1.5, OAEP v1/v2/v2.1)
-- **ECDH** key agreement with NIST curves (P-256, P-384, P-521) and HKDF-SHA256 derivation
-- Fluent builder API with compile-time safety — phantom types for RSA and sealed cipher variants for AES
-- Automatic IV/nonce generation with cryptographically secure random
-- Structured payloads for easy serialization
-- Key serialization in PEM, DER, and Base64 formats
-- Async key generation (non-blocking via `Isolate` on VM/AOT; runs on the main thread on Flutter web, where `dart:isolate` is unavailable)
-- Consistent exception hierarchy for error handling
+## Requirements
 
-## Platform support
+Dart 3.8 or newer:
 
-| Platform                                  | Supported                               |
-| ----------------------------------------- | --------------------------------------- |
-| Dart VM (CLI / servers)                   | ✅                                       |
-| Flutter mobile (iOS, Android)             | ✅                                       |
-| Flutter desktop (macOS, Windows, Linux)   | ✅                                       |
-| Flutter web (dart2js, dart2wasm)          | ✅ (see note below)                      |
+```bash
+dart --version
+```
 
-On Flutter web, `dart:isolate` is not available. Key-generation calls
-(`Fortis.aes().generateKey()`, `Fortis.ecdh().generateKeyPair()`,
-`Fortis.rsa().generateKeyPair()`) still return a `Future` but execute
-synchronously on the main thread. AES and ECDH are effectively
-instantaneous; RSA ≥ 2048 bits can freeze the UI for seconds — a
-`FortisLog` warning is emitted to flag it. Consider pre-generating RSA
-keys server-side or offloading to a Web Worker if that matters.
+No Flutter dependency — the package runs in a CLI, on a server, and inside any Flutter app. One runtime dependency: [pointycastle](https://pub.dev/packages/pointycastle).
 
 ## Installation
 
@@ -40,7 +21,7 @@ keys server-side or offloading to a Web Worker if that matters.
 dart pub add fortis
 ```
 
-Or in pubspec.yaml:
+Or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -51,13 +32,7 @@ dependencies:
 import 'package:fortis/fortis.dart';
 ```
 
-For a runnable end-to-end tour of the API, see [`example/example.dart`](example/example.dart).
-
-## Learn Cryptography
-
-New to cryptography or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Check out our [Cryptography Guide](doc/cryptography/en.md)
-
-## Quick Start
+## Quick start
 
 ```dart
 import 'package:fortis/fortis.dart';
@@ -96,11 +71,56 @@ final sharedKey = Fortis.ecdh()
 final sharedCipher = Fortis.aes().gcm().cipher(sharedKey);
 ```
 
+## Contents
+
+- [Why fortis](#why-fortis)
+- [Platform support](#platform-support)
+- [Learn cryptography](#learn-cryptography)
+- [AES (Advanced Encryption Standard)](#aes-advanced-encryption-standard)
+- [RSA (Rivest-Shamir-Adleman)](#rsa-rivest-shamir-adleman)
+- [ECDH (Elliptic Curve Diffie–Hellman)](#ecdh-elliptic-curve-diffiehellman)
+- [Error handling](#error-handling)
+- [Example](#example)
+- [License](#license)
+
+## Why fortis
+
+- **AES** encryption with 7 cipher modes (ECB, CBC, CTR, CFB, OFB, GCM, CCM)
+- **RSA** encryption with 4 padding schemes (PKCS#1 v1.5, OAEP v1/v2/v2.1)
+- **ECDH** key agreement with NIST curves (P-256, P-384, P-521) and HKDF-SHA256 derivation
+- Fluent builder API with compile-time safety — phantom types for RSA and sealed cipher variants for AES
+- Automatic IV/nonce generation with cryptographically secure random
+- Structured payloads for easy serialization
+- Key serialization in PEM, DER, and Base64 formats
+- Async key generation (non-blocking via `Isolate` on VM/AOT; runs on the main thread on Flutter web, where `dart:isolate` is unavailable)
+- Consistent exception hierarchy for error handling
+
+## Platform support
+
+| Platform                                  | Supported                               |
+| ----------------------------------------- | --------------------------------------- |
+| Dart VM (CLI / servers)                   | ✅                                       |
+| Flutter mobile (iOS, Android)             | ✅                                       |
+| Flutter desktop (macOS, Windows, Linux)   | ✅                                       |
+| Flutter web (dart2js, dart2wasm)          | ✅ (see note below)                      |
+
+On Flutter web, `dart:isolate` is not available. Key-generation calls
+(`Fortis.aes().generateKey()`, `Fortis.ecdh().generateKeyPair()`,
+`Fortis.rsa().generateKeyPair()`) still return a `Future` but execute
+synchronously on the main thread. AES and ECDH are effectively
+instantaneous; RSA ≥ 2048 bits can freeze the UI for seconds — a
+`FortisLog` warning is emitted to flag it. Consider pre-generating RSA
+keys server-side or offloading to a Web Worker if that matters.
+
+## Learn cryptography
+
+New to cryptography, or want to understand the concepts behind AES, RSA, padding schemes, and cipher modes? Read the [cryptography guide](docs/cryptography/en.md) — also available in [Spanish](docs/cryptography/es.md) and [Portuguese](docs/cryptography/pt-br.md).
+
 ---
 
 ## AES (Advanced Encryption Standard)
 
-### Supported Modes
+### Supported modes
 
 | Mode  | Type          | IV/Nonce                             | Description                                                  |
 | ----- | ------------- | ------------------------------------ | ------------------------------------------------------------ |
@@ -112,7 +132,7 @@ final sharedCipher = Fortis.aes().gcm().cipher(sharedKey);
 | `GCM` | Authenticated | Configurable (default 12)            | Galois/Counter Mode with authentication tag                  |
 | `CCM` | Authenticated | Configurable 7–13 bytes (default 11) | Counter with CBC-MAC                                         |
 
-### Supported Padding (Block Modes Only)
+### Supported padding (block modes only)
 
 Padding applies only to **ECB** and **CBC** modes. Stream and authenticated modes do not use padding.
 
@@ -123,11 +143,11 @@ Padding applies only to **ECB** and **CBC** modes. Stream and authenticated mode
 | `zeroPadding` | Zero-byte padding — ambiguous, legacy use only |
 | `noPadding`   | No padding — data must be 16-byte aligned      |
 
-### Key Sizes
+### Key sizes
 
 128, 192, and 256 bits. Default is **256 bits**.
 
-### Key Generation
+### Key generation
 
 ```dart
 // Generate a random key (default 256-bit)
@@ -145,7 +165,7 @@ final base64 = key.toBase64();
 final restored = FortisAesKey.fromBase64(base64);
 ```
 
-### Block Modes (ECB, CBC)
+### Block modes (ECB, CBC)
 
 ```dart
 // CBC with PKCS7 padding
@@ -161,7 +181,7 @@ final plaintext = cipher.decryptToString(ciphertext);
 final ciphertext = cipher.encrypt('secret message', iv: myIv);
 ```
 
-### Stream Modes (CTR, CFB, OFB)
+### Stream modes (CTR, CFB, OFB)
 
 ```dart
 // CTR mode — no padding needed
@@ -171,7 +191,7 @@ final ciphertext = cipher.encrypt('secret message');
 final plaintext = cipher.decryptToString(ciphertext);
 ```
 
-### Authenticated Modes (GCM, CCM)
+### Authenticated modes (GCM, CCM)
 
 GCM and CCM provide both encryption and integrity verification via an authentication tag.
 
@@ -183,7 +203,7 @@ final ciphertext = cipher.encrypt('secret message');
 final plaintext = cipher.decryptToString(ciphertext);
 ```
 
-#### Additional Authenticated Data (AAD)
+#### Additional authenticated data (AAD)
 
 ```dart
 final aad = Uint8List.fromList(utf8.encode('metadata'));
@@ -198,7 +218,7 @@ final ciphertext = cipher.encrypt('secret message');
 final plaintext = cipher.decryptToString(ciphertext);
 ```
 
-#### Custom IV Size
+#### Custom IV size
 
 ```dart
 // GCM with custom IV size
@@ -208,7 +228,7 @@ final cipher = Fortis.aes().gcm().ivSize(16).cipher(key);
 final cipher = Fortis.aes().ccm().ivSize(13).cipher(key);
 ```
 
-#### Custom Tag Size (CCM only)
+#### Custom tag size (CCM only)
 
 GCM tags are fixed at 128 bits. CCM accepts `{32, 48, 64, 80, 96, 112, 128}` per NIST SP 800-38C — validated up front, invalid values throw `FortisConfigException`.
 
@@ -239,7 +259,7 @@ print(payload.toMap()); // {'iv': '...', 'data': '...'}
 
 > When the mode is only known at runtime, use `Fortis.aes().mode(runtimeMode).cipher(key)` — it returns the sealed base `AesCipher`; pattern-match or cast to the concrete variant before calling `encryptToPayload`.
 
-### Cross-platform Interoperability
+### Cross-platform interoperability
 
 The authenticated payload maps directly to the `{iv|nonce, data, tag}` wire format used by .NET, Java, Node.js, and OpenSSL:
 
@@ -256,7 +276,7 @@ final data = base64Encode(ct.sublist(12, ct.length - 16));
 final plain = cipher.decryptToString({'nonce': iv, 'data': data, 'tag': tag});
 ```
 
-### Decryption Input Formats
+### Decryption input formats
 
 The `decrypt` method accepts multiple input types:
 
@@ -279,7 +299,7 @@ cipher.decrypt(payload);
 
 ## RSA (Rivest-Shamir-Adleman)
 
-### Supported Padding Schemes
+### Supported padding schemes
 
 | Padding      | Description                                          |
 | ------------ | ---------------------------------------------------- |
@@ -288,7 +308,7 @@ cipher.decrypt(payload);
 | `oaep_v2`    | OAEP with configurable hash and MGF1                 |
 | `oaep_v2_1`  | OAEP with configurable hash, MGF1, and label support |
 
-### Supported Hash Algorithms
+### Supported hash algorithms
 
 | Hash       | Bits |
 | ---------- | ---- |
@@ -300,11 +320,11 @@ cipher.decrypt(payload);
 | `sha3_256` | 256  |
 | `sha3_512` | 512  |
 
-### Key Sizes
+### Key sizes
 
 Minimum **2048 bits**, must be a power of 2 (2048, 4096, 8192, ...). Default is **2048 bits**.
 
-### Key Pair Generation
+### Key pair generation
 
 ```dart
 // Generate with default size (2048-bit)
@@ -317,9 +337,9 @@ final publicKey = pair.publicKey;
 final privateKey = pair.privateKey;
 ```
 
-### Key Serialization
+### Key serialization
 
-#### Public Key
+#### Public key
 
 ```dart
 // PEM format
@@ -339,7 +359,7 @@ final key = FortisRsaPublicKey.fromDerBase64(base64String);
 final key = FortisRsaPublicKey.fromPem(pem, format: RsaPublicKeyFormat.pkcs1);
 ```
 
-#### Private Key
+#### Private key
 
 ```dart
 // PEM format
@@ -359,7 +379,7 @@ final key = FortisRsaPrivateKey.fromDerBase64(base64String);
 final key = FortisRsaPrivateKey.fromPem(pem, format: RsaPrivateKeyFormat.pkcs1);
 ```
 
-### Encryption & Decryption
+### Encryption and decryption
 
 ```dart
 // OAEP v2 with SHA-256
@@ -399,7 +419,7 @@ final decrypter = Fortis.rsa()
     .decrypter(pair.privateKey);
 ```
 
-### OAEP v2.1 with Label
+### OAEP v2.1 with label
 
 OAEP v2.1 supports an optional label for domain separation:
 
@@ -426,7 +446,7 @@ final encrypter = Fortis.rsa()
 
 ## ECDH (Elliptic Curve Diffie–Hellman)
 
-### Supported Curves
+### Supported curves
 
 | Curve  | Security Level | Description          |
 | ------ | -------------- | -------------------- |
@@ -434,7 +454,7 @@ final encrypter = Fortis.rsa()
 | `p384` | 192-bit        | NIST P-384           |
 | `p521` | 256-bit        | NIST P-521           |
 
-### Key Pair Generation
+### Key pair generation
 
 ```dart
 // Default (P-256)
@@ -447,7 +467,7 @@ final publicKey = pair.publicKey;
 final privateKey = pair.privateKey;
 ```
 
-### Key Serialization
+### Key serialization
 
 ```dart
 // Public key — PEM (X.509), DER, Base64
@@ -474,7 +494,7 @@ final restored = FortisEcdhPublicKey.fromDer(
 );
 ```
 
-### Deriving a Shared AES Key
+### Deriving a shared AES key
 
 Classic ECDH handshake — each peer generates a key pair, exchanges public keys, and derives the same AES key via HKDF-SHA256.
 
@@ -497,7 +517,7 @@ final bobKey = Fortis.ecdh()
 final cipher = Fortis.aes().gcm().cipher(aliceKey);
 ```
 
-### Advanced Derivation
+### Advanced derivation
 
 ```dart
 // Raw derived bytes with HKDF (configurable size, salt, and info)
@@ -525,7 +545,7 @@ final aesKey = EcdhKeyDerivation.hkdfDeriveAesKey(
 
 ---
 
-## Error Handling
+## Error handling
 
 Fortis uses a consistent exception hierarchy:
 
@@ -567,6 +587,15 @@ try {
 }
 ```
 
+## Example
+
+A runnable end-to-end tour of the public API lives in
+[`example/example.dart`](example/example.dart). Run it with:
+
+```sh
+dart run example/example.dart
+```
+
 ## License
 
-See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
