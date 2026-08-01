@@ -12,10 +12,10 @@ One command has to be green:
 ```
 
 It is the same script the release runs, minus tag, push and publish: dependencies, README
-version pin, analyze, the test suite on the VM, the test suite on Chrome, the runnable
-example, the examples inside the `///` docs, `dart doc` with zero warnings, the publish
-dry-run, and a pana score of 160/160. If it passes locally it passes in CI, because CI runs
-that file and nothing else.
+version pin, the CHANGELOG entry, analyze, the test suite on the VM, the test suite on
+Chrome, the runnable example, the examples inside the `///` docs, `dart doc` with zero
+warnings, the publish dry-run, and a pana score of 160/160. If it passes locally it passes
+in CI, because CI runs that file and nothing else.
 
 Budget around 15 minutes: the Chrome suite alone takes about 10 of them, for the reason
 below. The script needs network — it asks pub.dev which pana version to use — and a Dart SDK
@@ -69,5 +69,7 @@ load at random. Sequential is slower and it is the only reliable setting.
 
 ## Releasing
 
-Releases are cut by the maintainer, from the default branch, with `./scripts/release.sh`.
-Nothing publishes from CI.
+Releases are cut by the maintainer, from `master`, with `./scripts/release.sh`. It refuses
+to run outside `master` or with a dirty working tree — `pub publish` packs the files on
+disk, not the commit — then runs the full `verify.sh` before tagging. Nothing publishes
+from CI.
