@@ -5,6 +5,8 @@ library;
 
 /// The RSA padding scheme used by [RsaEncrypter] and [RsaDecrypter].
 ///
+/// {@category RSA}
+///
 /// Passed to [RsaBuilder.padding]. Padding is **mandatory** — RSA without
 /// padding is insecure. There is no default; the phantom-typed builder
 /// won't let you call [RsaBuilderReady.encrypter] /

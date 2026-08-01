@@ -7,6 +7,8 @@ import 'package:pointycastle/export.dart';
 
 /// The hash algorithm used inside RSA padding schemes (OAEP MGF1).
 ///
+/// {@category RSA}
+///
 /// Passed to [RsaBuilder.hash]. Defaults to none — the phantom-typed builder
 /// requires you to call [RsaBuilder.hash] before [RsaBuilderReady.encrypter] /
 /// [RsaBuilderReady.decrypter].

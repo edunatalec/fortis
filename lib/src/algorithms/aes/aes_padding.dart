@@ -3,6 +3,8 @@ library;
 
 /// The padding scheme for AES block modes ([AesMode.ecb], [AesMode.cbc]).
 ///
+/// {@category AES}
+///
 /// Stream modes ([AesMode.ctr], [AesMode.cfb], [AesMode.ofb]) and authenticated
 /// modes ([AesMode.gcm], [AesMode.ccm]) do not use padding.
 ///

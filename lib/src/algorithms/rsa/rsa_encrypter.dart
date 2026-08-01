@@ -20,6 +20,8 @@ import 'rsa_validators.dart';
 
 /// Encrypts data using an RSA public key.
 ///
+/// {@category RSA}
+///
 /// Build via [RsaBuilder]:
 /// ```dart
 /// final pair = await Fortis.rsa().generateKeyPair();

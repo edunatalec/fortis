@@ -5,6 +5,8 @@ import 'fortis_exception.dart';
 
 /// Thrown when the builder or caller input is misconfigured.
 ///
+/// {@category Errors}
+///
 /// Typical triggers:
 /// - Invalid key size (e.g. AES 123 bits, RSA 1024 bits).
 /// - Unsupported padding/hash combination (e.g. label with non-OAEP-v2.1).

@@ -17,6 +17,8 @@ const _pkcs1Footer = '-----END RSA PUBLIC KEY-----';
 
 /// An RSA public key used for encryption.
 ///
+/// {@category RSA}
+///
 /// Pure data container wrapping PointyCastle's [RSAPublicKey]. Serialization
 /// is available via [toPem], [toDer], and [toDerBase64]; import via
 /// [fromPem], [fromDer], and [fromDerBase64]. To encrypt data, build an

@@ -18,6 +18,8 @@ import 'rsa_validators.dart';
 
 /// Decrypts data using an RSA private key.
 ///
+/// {@category RSA}
+///
 /// Build via [RsaBuilder]:
 /// ```dart
 /// final pair = await Fortis.rsa().generateKeyPair();

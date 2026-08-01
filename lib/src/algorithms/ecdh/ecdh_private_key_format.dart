@@ -3,6 +3,8 @@ library;
 
 /// The serialization format for an ECDH private key.
 ///
+/// {@category ECDH}
+///
 /// Used by [FortisEcdhPrivateKey.toPem] / [FortisEcdhPrivateKey.toDer] and
 /// the matching [FortisEcdhPrivateKey.fromPem] /
 /// [FortisEcdhPrivateKey.fromDer] factories. Defaults to [pkcs8] in all

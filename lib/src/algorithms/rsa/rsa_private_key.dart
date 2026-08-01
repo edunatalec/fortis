@@ -17,6 +17,8 @@ const _pkcs1Footer = '-----END RSA PRIVATE KEY-----';
 
 /// An RSA private key used for decryption.
 ///
+/// {@category RSA}
+///
 /// Pure data container wrapping PointyCastle's [RSAPrivateKey]. Serialization
 /// is available via [toPem], [toDer], and [toDerBase64]; import via
 /// [fromPem], [fromDer], and [fromDerBase64]. To decrypt data, build an

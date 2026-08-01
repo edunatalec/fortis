@@ -7,6 +7,8 @@ import 'package:pointycastle/export.dart';
 
 /// No-op padding implementation for [AesPadding.noPadding].
 ///
+/// {@category AES}
+///
 /// Data must already be block-aligned before encryption; this padding adds
 /// and removes nothing, ensuring interoperability with systems that expect
 /// raw unpadded AES output.
@@ -37,6 +39,8 @@ class NoPaddingImpl implements Padding {
 }
 
 /// Custom zero-byte padding implementation.
+///
+/// {@category AES}
 ///
 /// ⚠️ Ambiguous if data legitimately ends with `0x00` bytes. Prefer PKCS#7.
 ///

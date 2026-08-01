@@ -64,6 +64,8 @@ export 'src/exceptions/fortis_key_exception.dart';
 
 /// Entry point for the Fortis cryptography library.
 ///
+/// {@category Core}
+///
 /// Three algorithm families, each with a fluent builder:
 /// - [aes] — AES symmetric encryption (ECB, CBC, CTR, CFB, OFB, GCM, CCM).
 /// - [rsa] — RSA asymmetric encryption (OAEP v2 / v2.1 / v1, PKCS#1 v1.5).

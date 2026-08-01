@@ -6,6 +6,8 @@ import 'rsa_public_key.dart';
 
 /// A matching pair of RSA [publicKey] and [privateKey].
 ///
+/// {@category RSA}
+///
 /// Produced by [RsaBuilder.generateKeyPair]. Keys are pure data containers
 /// — to encrypt or decrypt, build an [RsaEncrypter] / [RsaDecrypter] via
 /// [RsaBuilder].

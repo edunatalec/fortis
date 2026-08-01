@@ -8,6 +8,8 @@ import '../../exceptions/fortis_key_exception.dart';
 
 /// An AES symmetric key used for both encryption and decryption.
 ///
+/// {@category AES}
+///
 /// AES is a symmetric cipher — the same key encrypts and decrypts.
 /// Supported key sizes are 128, 192, and 256 bits.
 ///

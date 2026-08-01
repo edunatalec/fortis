@@ -5,6 +5,8 @@ library;
 
 /// The AES cipher mode of operation.
 ///
+/// {@category AES}
+///
 /// Passed to [AesBuilder.mode] when the mode is only known at runtime. For
 /// compile-time-known modes, prefer the typed shortcuts on [AesBuilder]
 /// ([AesBuilder.gcm], [AesBuilder.cbc], etc.) — they return builders whose

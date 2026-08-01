@@ -5,6 +5,8 @@ import 'dart:developer' as developer;
 
 /// Emits internal log messages for the Fortis library.
 ///
+/// {@category Core}
+///
 /// Messages appear in Dart DevTools and any attached log listeners
 /// under the `fortis` log name.
 ///

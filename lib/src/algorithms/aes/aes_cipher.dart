@@ -19,6 +19,8 @@ import 'aes_payload.dart';
 
 /// A symmetric AES cipher that encrypts and decrypts with the same key.
 ///
+/// {@category AES}
+///
 /// [AesCipher] is a `sealed` hierarchy with three concrete variants — each one
 /// exposed by a different mode builder so hover and autocomplete surface only
 /// the methods that make sense for the chosen mode:
@@ -649,6 +651,8 @@ sealed class AesCipher {
 
 /// A cipher for AES in [AesMode.ecb] mode.
 ///
+/// {@category AES}
+///
 /// ⚠️ ECB is insecure for most use cases — identical plaintext blocks produce
 /// identical ciphertext blocks, revealing patterns. Only use for legacy
 /// interoperability. Prefer [AesAuthCipher] (GCM) in new designs.
@@ -685,6 +689,8 @@ final class AesEcbCipher extends AesCipher {
 
 /// A cipher for AES modes that use an IV but do not authenticate:
 /// [AesMode.cbc], [AesMode.ctr], [AesMode.cfb], [AesMode.ofb].
+///
+/// {@category AES}
 ///
 /// These modes guarantee confidentiality but not integrity. For authenticated
 /// encryption (recommended for most use cases) see [AesAuthCipher].
@@ -778,6 +784,8 @@ final class AesStandardCipher extends AesCipher {
 }
 
 /// A cipher for AES authenticated modes: [AesMode.gcm], [AesMode.ccm].
+///
+/// {@category AES}
 ///
 /// Authenticated Encryption with Associated Data (AEAD) provides both
 /// confidentiality and integrity. On decrypt, Fortis verifies the auth tag

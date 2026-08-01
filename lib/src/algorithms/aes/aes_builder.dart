@@ -15,6 +15,8 @@ import 'aes_padding.dart';
 
 /// Builder for AES key generation and cipher configuration.
 ///
+/// {@category AES}
+///
 /// Obtain an instance via [Fortis.aes]. The only configurable parameter at
 /// this stage is the key size — defaults to **256 bits**.
 ///
@@ -186,6 +188,8 @@ class AesBuilder {
 
 /// Sealed base for mode-specific AES builders.
 ///
+/// {@category AES}
+///
 /// You won't construct subtypes directly — they are returned by the typed
 /// shortcuts on [AesBuilder]:
 ///
@@ -241,6 +245,8 @@ sealed class AesModeBuilder {
 
 /// Builder for [AesMode.ecb]. Exposes [padding].
 ///
+/// {@category AES}
+///
 /// ⚠️ ECB is insecure for most use cases — use [AesAuthModeBuilder] (GCM)
 /// unless you must interoperate with an ECB-only legacy system.
 ///
@@ -293,6 +299,8 @@ final class AesEcbModeBuilder extends AesModeBuilder {
 
 /// Builder for [AesMode.cbc]. Exposes [padding].
 ///
+/// {@category AES}
+///
 /// Example:
 /// ```dart
 /// final key = await Fortis.aes().generateKey();
@@ -340,6 +348,8 @@ final class AesCbcModeBuilder extends AesModeBuilder {
 /// Builder for stream modes ([AesMode.ctr], [AesMode.cfb], [AesMode.ofb]).
 /// No user-configurable padding — stream modes don't use padding.
 ///
+/// {@category AES}
+///
 /// Example:
 /// ```dart
 /// final key = await Fortis.aes().generateKey();
@@ -374,6 +384,8 @@ final class AesStreamModeBuilder extends AesModeBuilder {
 }
 
 /// Sealed base for authenticated-mode builders ([AesMode.gcm], [AesMode.ccm]).
+///
+/// {@category AES}
 ///
 /// The concrete subtypes [AesGcmModeBuilder] and [AesCcmModeBuilder] differ
 /// in what they expose:
@@ -426,6 +438,8 @@ sealed class AesAuthModeBuilder extends AesModeBuilder {
 }
 
 /// Builder for [AesMode.gcm]. Exposes [aad] and [ivSize].
+///
+/// {@category AES}
 ///
 /// The authentication tag is fixed at **128 bits** — the only size
 /// PointyCastle 4.x accepts for GCM. For variable tag sizes use
@@ -501,6 +515,8 @@ final class AesGcmModeBuilder extends AesAuthModeBuilder {
 }
 
 /// Builder for [AesMode.ccm]. Exposes [aad], [ivSize], and [tagSize].
+///
+/// {@category AES}
 ///
 /// Example:
 /// ```dart

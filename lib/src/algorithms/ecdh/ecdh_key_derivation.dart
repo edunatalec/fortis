@@ -13,6 +13,8 @@ import 'ecdh_public_key.dart';
 
 /// Performs ECDH key agreement and key derivation.
 ///
+/// {@category ECDH}
+///
 /// Use [deriveKey] to produce raw derived bytes via HKDF,
 /// or [deriveAesKey] to get a [FortisAesKey] directly.
 ///

@@ -3,6 +3,8 @@ library;
 
 /// The serialization format for an RSA private key.
 ///
+/// {@category RSA}
+///
 /// Used by [FortisRsaPrivateKey.toPem] / [FortisRsaPrivateKey.toDer] /
 /// [FortisRsaPrivateKey.fromPem] / [FortisRsaPrivateKey.fromDer]. Defaults
 /// to [pkcs8] in all of them.

@@ -3,6 +3,8 @@ library;
 
 /// The serialization format for an ECDH public key.
 ///
+/// {@category ECDH}
+///
 /// Used by [FortisEcdhPublicKey.toPem] / [FortisEcdhPublicKey.toDer] and
 /// the matching [FortisEcdhPublicKey.fromPem] /
 /// [FortisEcdhPublicKey.fromDer] factories. Defaults to [x509] in all

@@ -16,6 +16,8 @@ import 'ecdh_public_key.dart';
 
 /// A fluent builder for ECDH key agreement operations.
 ///
+/// {@category ECDH}
+///
 /// Obtain an instance via [Fortis.ecdh].
 ///
 /// **Defaults:**

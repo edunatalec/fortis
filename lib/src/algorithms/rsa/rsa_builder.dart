@@ -19,6 +19,8 @@ import 'rsa_public_key.dart';
 
 /// Marker base for the padding configuration state.
 ///
+/// {@category RSA}
+///
 /// See also:
 ///
 ///  * [RsaBuilderPaddingUnset], the state a fresh [RsaBuilder] starts in.
@@ -26,6 +28,8 @@ import 'rsa_public_key.dart';
 sealed class RsaBuilderPaddingState {}
 
 /// Indicates that [RsaBuilder.padding] has not been called yet.
+///
+/// {@category RSA}
 ///
 /// See also:
 ///
@@ -35,6 +39,8 @@ final class RsaBuilderPaddingUnset extends RsaBuilderPaddingState {}
 
 /// Indicates that [RsaBuilder.padding] has been called.
 ///
+/// {@category RSA}
+///
 /// See also:
 ///
 ///  * [RsaBuilderReady], the extension this marker helps unlock.
@@ -42,6 +48,8 @@ final class RsaBuilderPaddingUnset extends RsaBuilderPaddingState {}
 final class RsaBuilderPaddingSet extends RsaBuilderPaddingState {}
 
 /// Marker base for the hash configuration state.
+///
+/// {@category RSA}
 ///
 /// See also:
 ///
@@ -51,6 +59,8 @@ sealed class RsaBuilderHashState {}
 
 /// Indicates that [RsaBuilder.hash] has not been called yet.
 ///
+/// {@category RSA}
+///
 /// See also:
 ///
 ///  * [RsaBuilder], which carries this marker as a type parameter.
@@ -59,6 +69,8 @@ final class RsaBuilderHashUnset extends RsaBuilderHashState {}
 
 /// Indicates that [RsaBuilder.hash] has been called.
 ///
+/// {@category RSA}
+///
 /// See also:
 ///
 ///  * [RsaBuilderReady], the extension this marker helps unlock.
@@ -66,6 +78,8 @@ final class RsaBuilderHashUnset extends RsaBuilderHashState {}
 final class RsaBuilderHashSet extends RsaBuilderHashState {}
 
 /// A fluent builder for RSA operations.
+///
+/// {@category RSA}
 ///
 /// Obtain an instance via [Fortis.rsa].
 ///
@@ -226,6 +240,8 @@ class RsaBuilder<
 
 /// Unlocks [encrypter] and [decrypter] once both [RsaBuilder.padding] and
 /// [RsaBuilder.hash] have been called.
+///
+/// {@category RSA}
 ///
 /// See also:
 ///

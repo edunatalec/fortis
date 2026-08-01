@@ -5,6 +5,8 @@ import 'fortis_exception.dart';
 
 /// Thrown when an encrypt or decrypt operation fails at runtime.
 ///
+/// {@category Errors}
+///
 /// Typical triggers:
 /// - Authentication failure on GCM/CCM decrypt (ciphertext or AAD tampered
 ///   with, or a different AAD than the one used during encryption).

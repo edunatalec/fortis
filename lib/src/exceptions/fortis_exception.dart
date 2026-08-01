@@ -3,6 +3,8 @@ library;
 
 /// Base class for all exceptions thrown by the Fortis library.
 ///
+/// {@category Errors}
+///
 /// Catch [FortisException] to handle any Fortis-originated error; catch one
 /// of the concrete subtypes to react to a specific failure mode:
 /// - [FortisConfigException] — caller-side misconfiguration.

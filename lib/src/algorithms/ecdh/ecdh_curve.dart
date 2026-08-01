@@ -3,6 +3,8 @@ library;
 
 /// The elliptic curve used for ECDH key agreement.
 ///
+/// {@category ECDH}
+///
 /// Passed to [EcdhBuilder.curve]. Defaults to [p256].
 ///
 /// Selection guide:

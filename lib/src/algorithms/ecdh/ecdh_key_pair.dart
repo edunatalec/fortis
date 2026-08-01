@@ -6,6 +6,8 @@ import 'ecdh_public_key.dart';
 
 /// A matching pair of ECDH [publicKey] and [privateKey].
 ///
+/// {@category ECDH}
+///
 /// Produced by [EcdhBuilder.generateKeyPair]. Share [publicKey] with the
 /// other party and combine their public key with your [privateKey] via
 /// [EcdhBuilder.keyDerivation] to derive a shared secret.

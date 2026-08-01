@@ -5,6 +5,8 @@ import 'fortis_exception.dart';
 
 /// Thrown when a key cannot be imported or exported.
 ///
+/// {@category Errors}
+///
 /// Typical triggers:
 /// - Malformed PEM header or body.
 /// - Invalid DER / ASN.1 structure.

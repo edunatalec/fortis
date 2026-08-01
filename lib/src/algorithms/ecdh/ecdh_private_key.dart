@@ -22,6 +22,8 @@ const _ecPublicKeyOid = '1.2.840.10045.2.1';
 
 /// An ECDH private key used for key agreement.
 ///
+/// {@category ECDH}
+///
 /// Pure data container wrapping PointyCastle's [ECPrivateKey]. Serialization
 /// is available via [toPem], [toDer], and [toDerBase64].
 ///

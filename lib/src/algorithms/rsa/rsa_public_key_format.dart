@@ -3,6 +3,8 @@ library;
 
 /// The serialization format for an RSA public key.
 ///
+/// {@category RSA}
+///
 /// Used by [FortisRsaPublicKey.toPem] / [FortisRsaPublicKey.toDer] /
 /// [FortisRsaPublicKey.fromPem] / [FortisRsaPublicKey.fromDer]. Defaults to
 /// [x509] in all of them.

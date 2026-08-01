@@ -4,6 +4,8 @@ library;
 /// The output of an AES authenticated encryption operation
 /// ([AesMode.gcm], [AesMode.ccm]).
 ///
+/// {@category AES}
+///
 /// Contains the three components returned separately by many external
 /// systems (.NET, Java, OpenSSL) when using authenticated encryption modes:
 ///

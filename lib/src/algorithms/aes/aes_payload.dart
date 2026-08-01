@@ -4,6 +4,8 @@ library;
 /// The output of an AES non-authenticated encryption operation
 /// ([AesMode.cbc], [AesMode.ctr], [AesMode.cfb], [AesMode.ofb]).
 ///
+/// {@category AES}
+///
 /// Contains:
 /// - [iv]: the initialization vector, Base64-encoded. Always 16 bytes.
 /// - [data]: the ciphertext, Base64-encoded.
